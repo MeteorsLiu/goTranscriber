@@ -10,7 +10,7 @@ import (
 
 type SRT struct {
 	builder strings.Builder
-	count   byte
+	count   uint64
 }
 
 // formatTime function converts the internal time to SubRip Time
@@ -44,12 +44,12 @@ func formatTime(internalTime string) (string, error) {
 
 func New() *SRT {
 	return &SRT{
-		count: byte(1),
+		count: 1,
 	}
 }
 
 func (s *SRT) Append(start, end, content string) {
-	s.builder.WriteByte(s.count)
+	s.builder.WriteString(strconv.FormatUint(s.count, 10))
 	s.builder.WriteString("\n")
 	start_, err1 := formatTime(start)
 	_end, err2 := formatTime(end)
@@ -65,4 +65,9 @@ func (s *SRT) Append(start, end, content string) {
 
 func (s *SRT) String() string {
 	return s.builder.String()
+}
+
+func (s *SRT) Reset() {
+	s.builder.Reset()
+	s.count = 1
 }
