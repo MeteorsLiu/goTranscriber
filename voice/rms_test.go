@@ -20,6 +20,6 @@ func TestRMS(t *testing.T) {
 		sum += rms(samples, 2)
 
 	}
-	t.Log(sum)
+	t.Log(sum/4096.0)
 
 }
