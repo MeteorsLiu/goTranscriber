@@ -13,5 +13,5 @@ func rms(chunk []wav.Sample, width int) float64 {
 			sumsq += float64(sample.Values[i] * sample.Values[i])
 		}
 	}
-	return math.Sqrt(sumsq) / float64(4096/width)
+	return math.Sqrt(sumsq / float64(4096/width))
 }
