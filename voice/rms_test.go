@@ -11,5 +11,5 @@ func TestRMS(t *testing.T) {
 	reader := wav.NewReader(file)
 	defer file.Close()
 	samples, _ := reader.ReadSamples(4096)
-	t.Log(rms(samples))
+	t.Log(rms(samples), len(samples))
 }

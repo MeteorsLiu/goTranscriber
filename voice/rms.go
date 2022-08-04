@@ -7,9 +7,6 @@ import (
 )
 
 func rms(chunk []wav.Sample) float64 {
-	if len(chunk) > 4096 || len(chunk) == 0 {
-		return 0
-	}
 	var sumsq float64
 	for _, sample := range chunk {
 		for i := 0; i < 2; i++ {
