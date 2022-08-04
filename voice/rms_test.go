@@ -17,9 +17,9 @@ func TestRMS(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		sum += rms(samples)
+		sum += rms(samples, 2)
 
 	}
-	t.Log(sum/4096.0)
+	t.Log(sum)
 
 }
