@@ -55,7 +55,3 @@ func New(filename string) *Voice {
 func (v *Voice) Close() {
 	v.file.Close()
 }
-
-func (v *Voice) Regions() []Region {
-
-}
