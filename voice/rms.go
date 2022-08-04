@@ -21,7 +21,7 @@ func rms32(chunk []byte, width int) float64 {
 }
 
 func rms(chunk []byte, width int) float64 {
-	if len(chunk) > 4096 {
+	if len(chunk) > 4096 || len(chunk) == 0 {
 		return 0
 	}
 	var rmsRet float64
