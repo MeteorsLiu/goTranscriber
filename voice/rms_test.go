@@ -6,7 +6,7 @@ import (
 	"os"
 )
 func TestRMS(t *testing.T) {
-	buf := make([]byte, 4096)
+	var buf [4096]byte
 	file, _ := os.Open("/home/nfs/py/GVRD-94/1.wav")
 	reader := wav.NewReader(file)
 	defer file.Close()
