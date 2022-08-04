@@ -2,6 +2,7 @@ package voice
 
 import (
 	"github.com/MeteorsLiu/go-wav"
+	"io"
 	"os"
 	"testing"
 )
@@ -16,7 +17,6 @@ func TestRMS(t *testing.T) {
 			break
 		}
 		t.Log(rms(samples))
-
 
 	}
 
