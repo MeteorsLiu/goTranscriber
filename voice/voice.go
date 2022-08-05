@@ -67,16 +67,11 @@ func (v *Voice) To(r []Region) ([]*os.File, error) {
 	var file map[int]*os.File
 	var wg sync.WaitGroup
 	var lock sync.Mutex
-	count := 0
+
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count >= 10 {
-			wg.Wait()
-			count = 0
-		}
-		if count == 0 {
-			wg.Add(10)
-		}
+		wg.Add(10)
+
 		go func() {
 			f, err := extractSlice(&wg, region.Start, region.End, v.file.Name())
 			if err != nil {
@@ -88,8 +83,7 @@ func (v *Voice) To(r []Region) ([]*os.File, error) {
 			file[index] = f
 		}()
 
-		count++
-
+		wg.Wait()
 	}
 
 	// sort the map
