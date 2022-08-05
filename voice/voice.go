@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"io"
 	"math"
 	"os"
 	"strings"
@@ -13,8 +14,8 @@ var (
 )
 
 type Region struct {
-	Start string
-	End   string
+	Start float64
+	End   float64
 }
 type Voice struct {
 	file          *os.File
@@ -54,4 +55,38 @@ func New(filename string) *Voice {
 
 func (v *Voice) Close() {
 	v.file.Close()
+}
+
+func (v *Voice) Regions() []Region {
+	energies := make([]float64, v.nChunks)
+	for i := 0; i < v.nChunks; i++ {
+		samples, err := v.r.ReadSamples(4096)
+		if err == io.EOF {
+			break
+		}
+		energies = append(energies, rms(samples, v.nChannels))
+	}
+	threshold := percentile(energies, 0.2)
+	var is_silence bool
+	var max_exceeded bool
+	var regions []Region
+	var region_start float64
+	var elapsed_time float64
+	for _, energy := range energies {
+		is_silence = energy <= threshold
+		max_exceeded = region_start != 0 && (elapsed_time-region_start >= 6)
+		if (max_exceeded || is_silence) && region_start != 0 {
+			if elapsed_time-region_start >= 6 {
+				regions = append(regions, Region{
+					Start: region_start,
+					End:   elapsed_time,
+				})
+				region_start = 0
+			}
+		} else if region_start == 0 && !is_silence {
+			region_start = elapsed_time
+		}
+		elapsed_time += v.chunkDuration
+	}
+	return regions
 }
