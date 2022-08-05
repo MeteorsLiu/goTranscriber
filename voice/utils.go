@@ -24,10 +24,10 @@ func rms(chunk []wav.Sample, nChannel int) float64 {
 	var sumsq float64
 	for _, sample := range chunk {
 		for i := 0; i < nChannel; i++ {
-			if sample.Values[i] == 0 {
-				continue
+			if sample.Values[i] > 0 {
+				sumsq += float64(sample.Values[i] * sample.Values[i])
 			}
-			sumsq += float64(sample.Values[i] * sample.Values[i])
+
 		}
 	}
 	return math.Sqrt(sumsq / FRAME_WIDTH)

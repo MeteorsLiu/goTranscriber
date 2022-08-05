@@ -58,13 +58,17 @@ func (v *Voice) Close() {
 }
 
 func (v *Voice) Regions() []Region {
-	energies := make([]float64, v.nChunks)
+	var energies []float64
 	for i := 0; i < v.nChunks; i++ {
 		samples, err := v.r.ReadSamples(4096)
 		if err == io.EOF {
 			break
 		}
-		energies = append(energies, rms(samples, v.nChannels))
+		r := rms(samples, v.nChannels)
+		if r > 0 {
+			energies = append(energies, r)
+		}
+
 	}
 	threshold := percentile(energies, 0.2)
 	var is_silence bool
