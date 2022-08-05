@@ -10,7 +10,9 @@ import (
 )
 
 var (
-	FRAME_WIDTH float64 = 4096.0
+	FRAME_WIDTH     float64 = 4096.0
+	MAX_REGION_SIZE float64 = 6.0
+	MIN_REGION_SIZE float64 = 0.5
 )
 
 type Region struct {
@@ -78,9 +80,9 @@ func (v *Voice) Regions() []Region {
 	var elapsed_time float64
 	for _, energy := range energies {
 		is_silence = energy <= threshold
-		max_exceeded = region_start != 0 && (elapsed_time-region_start >= 6)
+		max_exceeded = region_start != 0 && (elapsed_time-region_start >= MAX_REGION_SIZE)
 		if (max_exceeded || is_silence) && region_start != 0 {
-			if elapsed_time-region_start >= 6 {
+			if elapsed_time-region_start >= MIN_REGION_SIZE {
 				regions = append(regions, Region{
 					Start: region_start,
 					End:   elapsed_time,
