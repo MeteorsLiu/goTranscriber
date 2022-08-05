@@ -70,12 +70,12 @@ func (v *Voice) To(r []Region) []*os.File {
 	count := 0
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count >= 10 {
+		if count >= MAX_CONCURRENT {
 			wg.Wait()
 			count = 0
 		}
 		if count == 0 {
-			wg.Add(10)
+			wg.Add(MAX_CONCURRENT)
 		}
 		go func() {
 			defer wg.Done()
@@ -136,5 +136,7 @@ func (v *Voice) Regions() []Region {
 		}
 		elapsed_time += v.chunkDuration
 	}
+	// tell gc to sweep the mem. no more need
+	v.r = nil
 	return regions
 }

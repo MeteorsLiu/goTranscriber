@@ -67,12 +67,12 @@ func Do(lang, filename string) {
 	}
 	for index, file := range v.To(regions) {
 		// Pause the new goroutine until all goroutines are release
-		if count >= 10 {
+		if count >= 13 {
 			wg.Wait()
 			count = 0
 		}
 		if count == 0 {
-			wg.Add(10)
+			wg.Add(13)
 		}
 		go func() {
 			defer wg.Done()
