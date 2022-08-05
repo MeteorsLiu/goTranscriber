@@ -30,7 +30,7 @@ type Transcriber struct {
 	url     string
 }
 
-func getLangCode() map[string]string {
+func GetLangCode() map[string]string {
 	lang := map[string]string{}
 	lang["af"] = "Afrikaans"
 	lang["ar"] = "Arabic"
@@ -279,6 +279,10 @@ func (t *Transcriber) Transcribe(file *os.File) (string, error) {
 		if err != nil {
 			return "", err
 		}
+	}
+	// Maybe it panic
+	if ret == "" {
+		return "", errors.New("transcribe panic")
 	}
 	return ret, nil
 
