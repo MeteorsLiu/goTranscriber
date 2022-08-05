@@ -60,13 +60,13 @@ func New(filename string) *Voice {
 }
 
 func (v *Voice) Close() {
-	v.file.Close()
+	os.Remove(v.file.Name())
 }
 
-func (v *Voice) To(r []Region) ([]*os.File, error) {
-	var file map[int]*os.File
+func (v *Voice) To(r []Region) []*os.File {
 	var wg sync.WaitGroup
 	var lock sync.Mutex
+	file := map[int]*os.File{}
 	count := 0
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
@@ -103,7 +103,7 @@ func (v *Voice) To(r []Region) ([]*os.File, error) {
 	for _, i := range keys {
 		sortedFile = append(sortedFile, file[i])
 	}
-	return sortedFile, nil
+	return sortedFile
 }
 func (v *Voice) Regions() []Region {
 	var energies []float64
