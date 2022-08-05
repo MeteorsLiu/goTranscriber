@@ -2,9 +2,12 @@ package voice
 
 import (
 	"io"
+	"log"
 	"math"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/MeteorsLiu/go-wav"
 )
@@ -13,6 +16,7 @@ var (
 	FRAME_WIDTH     float64 = 4096.0
 	MAX_REGION_SIZE float64 = 6.0
 	MIN_REGION_SIZE float64 = 0.5
+	MAX_CONCURRENT          = 10
 )
 
 type Region struct {
@@ -59,6 +63,47 @@ func (v *Voice) Close() {
 	v.file.Close()
 }
 
+func (v *Voice) To(r []Region) ([]*os.File, error) {
+	var file map[int]*os.File
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	count := 0
+	for index, region := range r {
+		// Pause the new goroutine until all goroutines are release
+		if count >= 10 {
+			wg.Wait()
+			count = 0
+		}
+		if count == 0 {
+			wg.Add(10)
+		}
+		go func() {
+			f, err := extractSlice(&wg, region.Start, region.End, v.file.Name())
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			file[index] = f
+		}()
+
+		count++
+
+	}
+
+	// sort the map
+	keys := make([]int, len(file))
+	sortedFile := make([]*os.File, len(file))
+	for k := range file {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	for _, i := range keys {
+		sortedFile = append(sortedFile, file[i])
+	}
+	return sortedFile, nil
+}
 func (v *Voice) Regions() []Region {
 	var energies []float64
 	for i := 0; i < v.nChunks; i++ {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 )
 
 func exists(cmd string) (string, bool) {
@@ -29,7 +30,8 @@ func extractAudio(filename string) (string, error) {
 	return "", errors.New("please install ffmpeg")
 }
 
-func extractSlice(start, end float64, filename string) (*os.File, error) {
+func extractSlice(wg *sync.WaitGroup, start, end float64, filename string) (*os.File, error) {
+	defer wg.Done()
 	if cmd, ok := exists("ffmpeg"); ok {
 		audio, err := os.CreateTemp("", "*.wav")
 		if err != nil {
@@ -37,7 +39,7 @@ func extractSlice(start, end float64, filename string) (*os.File, error) {
 		}
 		start_ := strconv.FormatFloat(start+0.25, 'f', -1, 64)
 		_end := strconv.FormatFloat(end-start, 'f', -1, 64)
-		if err := exec.Command(cmd, "-ss", start_, "-t", _end, "-i", filename, audio.Name()).Run(); err != nil {
+		if err := exec.Command(cmd, "-ss", start_, "-t", _end, "-i", filename, "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
 			return nil, err
 		}
 		return audio, nil

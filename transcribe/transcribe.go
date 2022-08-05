@@ -190,7 +190,7 @@ func isChina() bool {
 }
 
 func New(lang string) *Transcriber {
-	if _, ok := getLangCode()[lang]; !ok {
+	if _, ok := GetLangCode()[lang]; !ok {
 		log.Fatal("error language code")
 	}
 	var url string
