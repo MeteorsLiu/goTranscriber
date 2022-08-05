@@ -29,19 +29,18 @@ func extractAudio(filename string) (string, error) {
 	return "", errors.New("please install ffmpeg")
 }
 
-func extractSlice(start, end float64, filename string) ([]byte, error) {
+func extractSlice(start, end float64, filename string) (*os.File, error) {
 	if cmd, ok := exists("ffmpeg"); ok {
 		audio, err := os.CreateTemp("", "*.wav")
 		if err != nil {
 			return nil, err
 		}
-		defer os.Remove(audio.Name())
 		start_ := strconv.FormatFloat(start+0.25, 'f', -1, 64)
 		_end := strconv.FormatFloat(end-start, 'f', -1, 64)
 		if err := exec.Command(cmd, "-ss", start_, "-t", _end, "-i", filename, audio.Name()).Run(); err != nil {
 			return nil, err
 		}
-		return os.ReadFile(audio.Name())
+		return audio, nil
 	}
 	return nil, errors.New("please install ffmpeg")
 }
