@@ -78,7 +78,8 @@ func (v *Voice) To(r []Region) ([]*os.File, error) {
 			wg.Add(10)
 		}
 		go func() {
-			f, err := extractSlice(&wg, region.Start, region.End, v.file.Name())
+			defer wg.Done()
+			f, err := extractSlice(region.Start, region.End, v.file.Name())
 			if err != nil {
 				log.Println(err)
 				return
