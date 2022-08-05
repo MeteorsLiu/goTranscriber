@@ -2,7 +2,6 @@ package voice
 
 import (
 	"io"
-	"log"
 	"math"
 	"os"
 	"strings"
@@ -70,7 +69,6 @@ func (v *Voice) Regions() []Region {
 		energies = append(energies, rms(samples, v.nChannels))
 	}
 	threshold := percentile(energies, 0.2)
-	log.Println(threshold)
 	var is_silence bool
 	var max_exceeded bool
 	var regions []Region
