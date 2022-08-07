@@ -79,6 +79,7 @@ func New(filename string, isVad bool) *Voice {
 }
 
 func (v *Voice) Close() {
+	log.Println("Remove tmp file" + v.file.Name())
 	os.Remove(v.file.Name())
 }
 
