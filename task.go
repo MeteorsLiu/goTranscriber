@@ -147,22 +147,36 @@ func DoVad(lang, filename string) {
 	log.Println("Slices Done")
 	log.Println("Start to upload the video slices")
 	bar := progressbar.Default(int64(len(slices)))
+	count := 0
+	numConcurrent := 10
+	goid := make(chan int)
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
-		wg.Add(1)
+		if count >= numConcurrent {
+			wg.Wait()
+			count = 0
+			if len(slices)-index+1-numConcurrent < 0 && numConcurrent > 1 {
+				numConcurrent = 1
+			}
+		}
+		if count == 0 {
+			wg.Add(numConcurrent)
+		}
 		go func() {
 			defer wg.Done()
+			id := <-goid
 			subtitle, err := t.Transcribe(file, true)
 			if err != nil {
-				log.Printf("ID: %d error occurs: %v", index, err)
+				log.Printf("ID: %d error occurs: %v", id, err)
 				return
 			}
 			log.Println(subtitle)
 			lock.Lock()
 			defer lock.Unlock()
-			trans[index] = subtitle
+			trans[id] = subtitle
 			bar.Add(1)
 		}()
+		goid <- index
 	}
 	wg.Wait()
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
