@@ -157,7 +157,7 @@ func DoVad(lang, filename string) {
 		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
-			if len(slices)-index+1-numConcurrent && numConcurrent > 1 {
+			if len(slices)-index+1-numConcurrent < 0 && numConcurrent > 1 {
 				numConcurrent = 1
 			}
 		}
