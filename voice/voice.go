@@ -35,6 +35,7 @@ type Voice struct {
 	chunkDuration float64
 	nChunks       int
 	sampleWidth   int
+	isVad         bool
 }
 
 func New(filename string, isVad bool) *Voice {
@@ -70,6 +71,7 @@ func New(filename string, isVad bool) *Voice {
 	return &Voice{
 		file:          file,
 		r:             reader,
+		isVad:         isVad,
 		rate:          info.FrameRate,
 		nChannels:     info.NChannels,
 		chunkDuration: chunkDuration,
@@ -97,7 +99,14 @@ func (v *Voice) To(r []Region) []*os.File {
 		go func() {
 			defer wg.Done()
 			id := <-goid
-			f, err := extractSlice(region.Start, region.End, v.file.Name())
+			var f *os.File
+			var err error
+			if v.isVad {
+				f, err = extractVadSlice(region.Start, region.End, v.file.Name())
+			} else {
+				f, err = extractSlice(region.Start, region.End, v.file.Name())
+			}
+
 			if err != nil {
 				log.Println(err)
 				return

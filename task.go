@@ -47,7 +47,7 @@ func Do(lang, filename string) {
 	if t == nil {
 		t = transcribe.New(lang, false)
 	}
-	v := voice.New(filename)
+	v := voice.New(filename, false)
 	if v == nil {
 		log.Fatal("Video Instance exits")
 	}
