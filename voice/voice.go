@@ -66,18 +66,16 @@ func (v *Voice) Close() {
 }
 
 func (v *Voice) To(r []Region) []*os.File {
-	var wg sync.WaitGroup
 	var lock sync.Mutex
 	file := map[int]*os.File{}
 
 	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
-
+	goid := make(chan int)
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
+			id := <-goid
 			f, err := extractSlice(region.Start, region.End, v.file.Name())
 			if err != nil {
 				log.Println(err)
@@ -85,11 +83,11 @@ func (v *Voice) To(r []Region) []*os.File {
 			}
 			lock.Lock()
 			defer lock.Unlock()
-			file[index] = f
+			file[id] = f
 			bar.Add(1)
 		}()
+		goid <- index
 	}
-	wg.Wait()
 
 	// sort the map
 	var keys []int
