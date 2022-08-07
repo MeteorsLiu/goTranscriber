@@ -1,6 +1,7 @@
 package transcribe
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -229,19 +230,19 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	res, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
 	//log.Println(string(res))
-	ret := map[string][]interface{}{}
-	_ = json.Unmarshal([]byte(string(res)), &ret)
-	log.Println(ret)
-	if result, ok := ret["result"]; ok {
-		if len(result) == 0 {
-			return "", MAYBE_RETRY
+	var ret map[string][]interface{}
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		ret = map[string][]interface{}{}
+		_ = json.Unmarshal(scanner.Bytes(), &ret)
+		log.Println(ret)
+		if result, ok := ret["result"]; ok {
+			if len(result) == 0 {
+				continue
+			}
+			return ret["result"][0].(map[string]interface{})["alternative"].([]interface{})[0].(map[string]interface{})["transcript"].(string), nil
 		}
-		return ret["result"][0].(map[string]interface{})["alternative"].([]interface{})[0].(map[string]interface{})["transcript"].(string), nil
 	}
 	return "", MAYBE_RETRY
 }
