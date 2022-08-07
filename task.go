@@ -169,6 +169,11 @@ func DoVad(lang, filename string) {
 			id := <-goid
 			file := <-fileCh
 			subtitle, err := t.Transcribe(file, true)
+			lock.Lock()
+			defer func() {
+				bar.Add(1)
+				lock.Unlock()
+			}()
 			if err != nil {
 				if !errors.Is(err, transcribe.MAYBE_RETRY) {
 					log.Printf("ID: %d error occurs: %v", id, err)
@@ -176,10 +181,7 @@ func DoVad(lang, filename string) {
 				return
 			}
 			//log.Println(subtitle)
-			lock.Lock()
-			defer lock.Unlock()
 			trans[id] = subtitle
-			bar.Add(1)
 		}()
 		goid <- index
 		fileCh <- _file

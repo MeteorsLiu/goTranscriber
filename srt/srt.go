@@ -60,6 +60,7 @@ func (s *SRT) Append(start, end, content string) {
 	s.builder.WriteString("\n")
 	s.builder.WriteString(content)
 	s.builder.WriteString("\n")
+	s.builder.WriteString("\n")
 	s.count++
 }
 
