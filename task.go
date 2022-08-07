@@ -89,7 +89,6 @@ func Do(lang, filename string) {
 		subtitle, err := t.Transcribe(file)
 		if err != nil {
 			log.Printf("ID: %d error occurs: %v", index, err)
-			return
 		}
 		log.Println(subtitle)
 		sortedSubtitle = append(sortedSubtitle, subtitle)
