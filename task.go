@@ -199,7 +199,7 @@ func DoVad(lang, filename string) {
 
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 
-	keys := make([]int, len(trans))
+	var keys []int
 	for k := range trans {
 		keys = append(keys, k)
 	}
