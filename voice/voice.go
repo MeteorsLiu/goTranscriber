@@ -115,6 +115,7 @@ func (v *Voice) To(r []Region) []*os.File {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
+	log.Println(keys)
 	for _, i := range keys {
 		sortedFile = append(sortedFile, file[i])
 	}

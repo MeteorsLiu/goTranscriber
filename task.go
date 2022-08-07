@@ -68,22 +68,12 @@ func Do(lang, filename string) {
 		return
 	}
 	log.Println("Start to transcribe the video")
-	numConcurrent := 10
-	count := 0
+
 	slices := v.To(regions)
 	log.Println("Slices Done")
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
-		if count >= numConcurrent {
-			wg.Wait()
-			count = 0
-			if (len(slices)-index+1)-numConcurrent < 0 {
-				numConcurrent = 1
-			}
-		}
-		if count == 0 {
-			wg.Add(numConcurrent)
-		}
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			subtitle, err := t.Transcribe(file)
@@ -96,9 +86,6 @@ func Do(lang, filename string) {
 			defer lock.Unlock()
 			trans[index] = subtitle
 		}()
-		count++
-	}
-	if count >= 0 {
 		wg.Wait()
 	}
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
