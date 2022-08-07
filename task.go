@@ -49,6 +49,9 @@ func Do(lang, filename string) {
 		t = transcribe.New(lang)
 	}
 	v := voice.New(filename)
+	if v == nil {
+		log.Fatal("Video Instance exits")
+	}
 	subrip := s.Get().(*srt.SRT)
 	subrip.Reset()
 	defer func() {
