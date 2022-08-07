@@ -71,6 +71,7 @@ func Do(lang, filename string) {
 	numConcurrent := 10
 	count := 0
 	slices := v.To(regions)
+	log.Println("Slices Done")
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
 		if count >= numConcurrent {
