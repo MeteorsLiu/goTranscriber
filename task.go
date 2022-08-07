@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -148,7 +149,7 @@ func DoVad(lang, filename string) {
 	log.Println("Start to upload the video slices")
 	bar := progressbar.Default(int64(len(slices)))
 	count := 0
-	numConcurrent := 10
+	numConcurrent := 15
 	goid := make(chan int)
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
@@ -167,10 +168,12 @@ func DoVad(lang, filename string) {
 			id := <-goid
 			subtitle, err := t.Transcribe(file, true)
 			if err != nil {
-				log.Printf("ID: %d error occurs: %v", id, err)
+				if !errors.Is(err, transcribe.MAYBE_RETRY) {
+					log.Printf("ID: %d error occurs: %v", id, err)
+				}
 				return
 			}
-			log.Println(subtitle)
+			//log.Println(subtitle)
 			lock.Lock()
 			defer lock.Unlock()
 			trans[id] = subtitle
