@@ -37,6 +37,7 @@ func New(filename string) *Voice {
 
 	f, err := extractAudio(filename)
 	if err != nil {
+		log.Println(err)
 		os.Remove(f)
 		return nil
 	}
@@ -45,6 +46,7 @@ func New(filename string) *Voice {
 	reader := wav.NewReader(file)
 	info, err := reader.Info()
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 
