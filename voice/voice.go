@@ -88,12 +88,12 @@ func (v *Voice) To(r []Region) []*os.File {
 			file[index] = f
 			bar.Add(1)
 		}()
-		wg.Wait()
 	}
+	wg.Wait()
 
 	// sort the map
-	keys := make([]int, len(file))
-	sortedFile := make([]*os.File, len(file))
+	var keys []int
+	var sortedFile []*os.File
 	for k := range file {
 		keys = append(keys, k)
 	}
