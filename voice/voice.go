@@ -82,7 +82,7 @@ func (v *Voice) To(r []Region) []*os.File {
 			// if the number of left elems is less than numConcurrent, reset the counter to 1.
 			// make sure wg.Add() will not be paused
 			if numConcurrent > 1 && (len(r)-index+1)-numConcurrent < 0 {
-				numConcurrent = len(r) - index + 1
+				numConcurrent = 1
 			}
 		}
 		if count == 0 {
