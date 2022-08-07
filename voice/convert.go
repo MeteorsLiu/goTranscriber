@@ -2,6 +2,7 @@ package voice
 
 import (
 	"errors"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -21,6 +22,7 @@ func extractAudio(filename string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		log.Println(cmd)
 		if err := exec.Command(cmd, "-i", filename, "-ar", "44100", "-ac", "1", audio.Name()).Run(); err != nil {
 			return "", err
 		}
