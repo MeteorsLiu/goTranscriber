@@ -86,8 +86,9 @@ func Do(lang, filename string) {
 			defer lock.Unlock()
 			trans[index] = subtitle
 		}()
-		wg.Wait()
+
 	}
+	wg.Wait()
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 	// sort the map
 	keys := make([]int, len(trans))

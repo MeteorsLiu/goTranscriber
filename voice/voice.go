@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"runtime"
 	"sort"
 	"sync"
 
@@ -70,24 +69,13 @@ func (v *Voice) To(r []Region) []*os.File {
 	var wg sync.WaitGroup
 	var lock sync.Mutex
 	file := map[int]*os.File{}
-	count := 0
+
 	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
-	numConcurrent := runtime.NumCPU()
+
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count >= numConcurrent {
-			wg.Wait()
-			count = 0
-			// if the number of left elems is less than numConcurrent, reset the counter to 1.
-			// make sure wg.Add() will not be paused
-			if numConcurrent > 1 && (len(r)-index+1)-numConcurrent < 0 {
-				numConcurrent = 1
-			}
-		}
-		if count == 0 {
-			wg.Add(numConcurrent)
-		}
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			f, err := extractSlice(region.Start, region.End, v.file.Name())
@@ -101,12 +89,11 @@ func (v *Voice) To(r []Region) []*os.File {
 			bar.Add(1)
 		}()
 
-		count++
+		wg.Wait()
 
 	}
-	if count >= 0 {
-		wg.Wait()
-	}
+
+	wg.Wait()
 
 	// sort the map
 	keys := make([]int, len(file))
