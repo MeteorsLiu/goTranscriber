@@ -59,20 +59,26 @@ func Do(lang, filename string) {
 	var wg sync.WaitGroup
 	var lock sync.Mutex
 	trans := map[int]string{}
-	count := 0
 	regions := v.Regions()
 	if len(regions) == 0 {
 		log.Println("unknown regions " + filename)
 		return
 	}
-	for index, file := range v.To(regions) {
+	log.Println("Start to transcribe the video")
+	numConcurrent := 10
+	count := 0
+	slices := v.To(regions)
+	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
-		if count >= 13 {
+		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
+			if (len(slices)-index+1)-numConcurrent < 0 {
+				numConcurrent = len(slices) - index + 1
+			}
 		}
 		if count == 0 {
-			wg.Add(13)
+			wg.Add(numConcurrent)
 		}
 		go func() {
 			defer wg.Done()
@@ -81,12 +87,17 @@ func Do(lang, filename string) {
 				log.Printf("ID: %d error occurs: %v", index, err)
 				return
 			}
+			log.Println(subtitle)
 			lock.Lock()
 			defer lock.Unlock()
 			trans[index] = subtitle
 		}()
 		count++
 	}
+	if count >= 0 {
+		wg.Wait()
+	}
+	log.Println("Transcribe Done.Waiting to sort the subtitle")
 	// sort the map
 	keys := make([]int, len(trans))
 	sortedSubtitle := make([]string, len(trans))

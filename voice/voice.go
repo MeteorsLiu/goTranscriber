@@ -5,8 +5,8 @@ import (
 	"log"
 	"math"
 	"os"
+	"runtime"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/MeteorsLiu/go-wav"
@@ -34,14 +34,14 @@ type Voice struct {
 }
 
 func New(filename string) *Voice {
-	if !strings.HasSuffix(filename, ".wav") {
-		filename, err := extractAudio(filename)
-		if err != nil {
-			os.Remove(filename)
-			return nil
-		}
+
+	f, err := extractAudio(filename)
+	if err != nil {
+		os.Remove(f)
+		return nil
 	}
-	file, _ := os.Open(filename)
+
+	file, _ := os.Open(f)
 	reader := wav.NewReader(file)
 	info, err := reader.Info()
 	if err != nil {
@@ -68,14 +68,21 @@ func (v *Voice) To(r []Region) []*os.File {
 	var lock sync.Mutex
 	file := map[int]*os.File{}
 	count := 0
+	// Make sure the least context switching
+	numConcurrent := runtime.NumCPU()
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count >= MAX_CONCURRENT {
+		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
+			// if the number of left elems is less than numConcurrent, reset the counter to 1.
+			// make sure wg.Add() will not be paused
+			if numConcurrent > 1 && (len(r)-index+1)-numConcurrent < 0 {
+				numConcurrent = len(r) - index + 1
+			}
 		}
 		if count == 0 {
-			wg.Add(MAX_CONCURRENT)
+			wg.Add(numConcurrent)
 		}
 		go func() {
 			defer wg.Done()
@@ -91,6 +98,9 @@ func (v *Voice) To(r []Region) []*os.File {
 
 		count++
 
+	}
+	if count >= 0 {
+		wg.Wait()
 	}
 
 	// sort the map
