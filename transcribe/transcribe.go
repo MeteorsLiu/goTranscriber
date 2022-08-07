@@ -241,7 +241,7 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) 
 	for scanner.Scan() {
 		ret = map[string][]interface{}{}
 		_ = json.Unmarshal(scanner.Bytes(), &ret)
-		log.Println(ret)
+		//log.Println(ret)
 		if result, ok := ret["result"]; ok {
 			if len(result) == 0 {
 				continue
