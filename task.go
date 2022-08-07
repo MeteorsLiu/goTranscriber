@@ -116,6 +116,6 @@ func Do(lang, filename string) {
 			s)
 	}
 	if err := os.WriteFile(getSrtName(filename), []byte(subrip.String()), 0755); err != nil {
-		log.Println("Generating Subrip File Failed: %v", err)
+		log.Printf("Generating Subrip File Failed: %v", err)
 	}
 }
