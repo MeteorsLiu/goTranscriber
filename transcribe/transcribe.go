@@ -237,6 +237,7 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer) (string, error) {
 	if err := json.Unmarshal(res, &ret); err != nil {
 		return "", err
 	}
+	log.Println(string(res))
 	if result, ok := ret["result"]; ok {
 		if len(result) == 0 {
 			return "", MAYBE_RETRY
