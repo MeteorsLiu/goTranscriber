@@ -22,8 +22,8 @@ func extractAudio(filename string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		log.Println(cmd)
-		if err := exec.Command(cmd, "-i", filename, "-ar", "44100", "-ac", "1", audio.Name()).Run(); err != nil {
+		log.Println(aut)
+		if err := exec.Command(cmd, "-y", "-i", filename, "-ar", "44100", "-ac", "1", audio.Name()).Run(); err != nil {
 			return "", err
 		}
 		return audio.Name(), nil
@@ -39,7 +39,7 @@ func extractSlice(start, end float64, filename string) (*os.File, error) {
 		}
 		start_ := strconv.FormatFloat(start+0.25, 'f', -1, 64)
 		_end := strconv.FormatFloat(end-start, 'f', -1, 64)
-		if err := exec.Command(cmd, "-ss", start_, "-t", _end, "-i", filename, "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
+		if err := exec.Command(cmd, "-y", "-ss", start_, "-t", _end, "-i", filename, "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
 			return nil, err
 		}
 		return audio, nil
