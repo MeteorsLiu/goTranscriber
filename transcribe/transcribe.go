@@ -261,6 +261,9 @@ func doRetry(call func() (string, error)) (string, error) {
 	return ret, err
 }
 func (t *Transcriber) Transcribe(file *os.File) (string, error) {
+	if file == nil {
+		return "", errors.New("nil pointer")
+	}
 	buf := t.bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer t.bufPool.Put(buf)

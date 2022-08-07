@@ -78,7 +78,7 @@ func Do(lang, filename string) {
 			wg.Wait()
 			count = 0
 			if (len(slices)-index+1)-numConcurrent < 0 {
-				numConcurrent = len(slices) - index + 1
+				numConcurrent = 1
 			}
 		}
 		if count == 0 {
