@@ -71,7 +71,7 @@ func (v *Voice) To(r []Region) []*os.File {
 	var lock sync.Mutex
 	file := map[int]*os.File{}
 	count := 0
-	bar := progressbar.Default(len(r))
+	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
 	numConcurrent := runtime.NumCPU()
 	for index, region := range r {
