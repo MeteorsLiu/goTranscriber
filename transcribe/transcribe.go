@@ -233,9 +233,10 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Println(string(res))
+	//log.Println(string(res))
 	ret := map[string][]interface{}{}
-	_ = json.Unmarshal(res, &ret)
+	_ = json.Unmarshal([]byte(string(res)), &ret)
+	log.Println(ret)
 	if result, ok := ret["result"]; ok {
 		if len(result) == 0 {
 			return "", MAYBE_RETRY
