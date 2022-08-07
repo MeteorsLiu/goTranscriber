@@ -45,7 +45,7 @@ func getSrtName(filename string) string {
 
 func Do(lang, filename string) {
 
-	t = transcribe.New(lang, false)
+	t = transcribe.New(lang)
 	v := voice.New(filename, false)
 	if v == nil {
 		log.Fatal("Video Instance exits")
@@ -85,7 +85,7 @@ func Do(lang, filename string) {
 				defer lock.Unlock()
 				trans[index] = subtitle
 			}()*/
-		subtitle, err := t.Transcribe(file)
+		subtitle, err := t.Transcribe(file, false)
 		if err != nil {
 			log.Printf("ID: %d error occurs: %v", index, err)
 		}
@@ -118,7 +118,7 @@ func Do(lang, filename string) {
 }
 
 func DoVad(lang, filename string) {
-	t = transcribe.New(lang, true)
+	t = transcribe.New(lang)
 
 	v := voice.New(filename, true)
 	if v == nil {
@@ -159,7 +159,7 @@ func DoVad(lang, filename string) {
 				defer lock.Unlock()
 				trans[index] = subtitle
 			}()*/
-		subtitle, err := t.Transcribe(file)
+		subtitle, err := t.Transcribe(file, true)
 		if err != nil {
 			log.Printf("ID: %d error occurs: %v", index, err)
 		}
