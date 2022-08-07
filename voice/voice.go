@@ -62,7 +62,7 @@ func New(filename string, isVad bool) *Voice {
 	var chunkDuration float64
 	if isVad {
 		WIDTH := info.FrameRate / 1000 * VAD_FRAME_DURATION * 16 / 8
-		chunkDuration = (WIDTH / float64(info.FrameRate)) / 2.0
+		chunkDuration = (float64(WIDTH) / float64(info.FrameRate)) / 2.0
 	} else {
 		chunkDuration = FRAME_WIDTH / float64(info.FrameRate)
 	}
@@ -183,7 +183,7 @@ func (v *Voice) Vad() []Region {
 			log.Println(err)
 			return nil
 		}
-		frameActive, err := webrtcvad.Process(vadInst, v.rate, frameBuffer, frameSize)
+		frameActive, _ := webrtcvad.Process(vadInst, v.rate, frameBuffer, frameSize)
 		if (elapsed_time-region_start >= MAX_REGION_SIZE || !frameActive) && region_start != 0 {
 			if elapsed_time-region_start >= MIN_REGION_SIZE {
 				regions = append(regions, Region{
