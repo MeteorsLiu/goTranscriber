@@ -1,4 +1,5 @@
 package srt
+
 import "testing"
 
 func TestSRT(t *testing.T) {

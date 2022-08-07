@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,11 @@ var (
 		},
 	}
 )
+
+type Subtitle struct {
+	voice.Region
+	Subtitle_String string
+}
 
 func zip(a []voice.Region, b []string) map[voice.Region]string {
 	regions := map[voice.Region]string{}
@@ -135,7 +141,7 @@ func DoVad(lang, filename string) {
 	}()
 	var wg sync.WaitGroup
 	var lock sync.Mutex
-	trans := map[voice.Region]string{}
+	trans := map[int]Subtitle{}
 	regions := v.Vad()
 	if len(regions) == 0 || regions == nil {
 		log.Println("unknown regions " + filename)
@@ -180,7 +186,10 @@ func DoVad(lang, filename string) {
 				return
 			}
 			//log.Println(subtitle)
-			trans[regions[id]] = subtitle
+			trans[id] = Subtitle{
+				Region:          regions[id],
+				Subtitle_String: subtitle,
+			}
 		}()
 		goid <- index
 		fileCh <- _file
@@ -189,11 +198,17 @@ func DoVad(lang, filename string) {
 	wg.Wait()
 
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
-	for r, s := range trans {
-		start := strconv.FormatFloat(r.Start, 'f', -1, 64)
-		end := strconv.FormatFloat(r.End, 'f', -1, 64)
+
+	keys := make([]int, len(trans))
+	for k := range trans {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	for _, k := range keys {
+		start := strconv.FormatFloat(trans[k].Region.Start, 'f', -1, 64)
+		end := strconv.FormatFloat(trans[k].Region.End, 'f', -1, 64)
 		log.Println(start, end)
-		subrip.Append(start, end, s)
+		subrip.Append(start, end, trans[k].Subtitle_String)
 	}
 	if err := os.WriteFile(getSrtName(filename), []byte(subrip.String()), 0755); err != nil {
 		log.Printf("Generating Subrip File Failed: %v", err)

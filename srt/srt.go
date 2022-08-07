@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type SRT struct {
@@ -33,12 +32,21 @@ func formatTime(internalTime string) (string, error) {
 	for len(milliTime) < 3 {
 		milliTime += "0"
 	}
+	var hour int64
+	var minute int64
+	if intTime > 3600 {
+		hour = intTime / 3600
+		intTime -= 3600 * hour
+	}
+	if intTime > 60 {
+		minute = intTime / 60
+		intTime -= 60 * minute
+	}
 
-	toConvertTime := time.Unix(intTime, 0)
 	return fmt.Sprintf("%02d:%02d:%02d,%s",
-		toConvertTime.Hour(),
-		toConvertTime.Minute(),
-		toConvertTime.Second(),
+		hour,
+		minute,
+		intTime,
 		milliTime), nil
 }
 
