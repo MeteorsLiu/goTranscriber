@@ -187,6 +187,8 @@ func (v *Voice) Vad() []Region {
 	if v.rate != 16000 && v.rate != 32000 && v.rate != 48000 {
 		log.Fatal("error audio frame rate")
 	}
+	// tell gc to sweep the mem. no more need
+	v.r = nil
 	WIDTH := v.rate / 1000 * VAD_FRAME_DURATION * 16 / 8
 	frameBuffer := make([]byte, WIDTH)
 	frameSize := v.rate / 1000 * VAD_FRAME_DURATION

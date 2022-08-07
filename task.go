@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/MeteorsLiu/goSRT/srt"
 	"github.com/MeteorsLiu/goSRT/transcribe"
 	"github.com/MeteorsLiu/goSRT/voice"
+	"github.com/schollz/progressbar/v3"
 )
 
 var (
@@ -131,55 +133,50 @@ func DoVad(lang, filename string) {
 		v = nil
 		s.Put(subrip)
 	}()
-	//var wg sync.WaitGroup
-	//var lock sync.Mutex
-	//trans := map[int]string{}
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	trans := map[int]string{}
 	regions := v.Vad()
 	if len(regions) == 0 || regions == nil {
 		log.Println("unknown regions " + filename)
 		return
 	}
 	log.Println("Start to transcribe the video")
-	var sortedSubtitle []string
+
 	slices := v.To(regions)
 	log.Println("Slices Done")
+	log.Println("Start to upload the video slices")
+	bar := progressbar.Default(int64(len(slices)))
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
-		/*
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				subtitle, err := t.Transcribe(file)
-				if err != nil {
-					log.Printf("ID: %d error occurs: %v", index, err)
-					return
-				}
-				log.Println(subtitle)
-				lock.Lock()
-				defer lock.Unlock()
-				trans[index] = subtitle
-			}()*/
-		subtitle, err := t.Transcribe(file, true)
-		if err != nil {
-			log.Printf("ID: %d error occurs: %v", index, err)
-		}
-		log.Println(subtitle)
-		sortedSubtitle = append(sortedSubtitle, subtitle)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			subtitle, err := t.Transcribe(file, true)
+			if err != nil {
+				log.Printf("ID: %d error occurs: %v", index, err)
+				return
+			}
+			log.Println(subtitle)
+			lock.Lock()
+			defer lock.Unlock()
+			trans[index] = subtitle
+			bar.Add(1)
+		}()
 	}
-	//wg.Wait()
+	wg.Wait()
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 	// sort the map
-	/*
-		keys := make([]int, len(trans))
-		sortedSubtitle := make([]string, len(trans))
-		for k := range trans {
-			keys = append(keys, k)
-		}
-		sort.Ints(keys)
+	keys := make([]int, len(trans))
+	sortedSubtitle := make([]string, len(trans))
+	for k := range trans {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
 
-		for _, s := range keys {
-			sortedSubtitle = append(sortedSubtitle, trans[s])
-		}*/
+	for _, s := range keys {
+		sortedSubtitle = append(sortedSubtitle, trans[s])
+	}
 	ret := zip(regions, sortedSubtitle)
 	for r, s := range ret {
 		subrip.Append(strconv.FormatFloat(r.Start, 'f', -1, 64),
