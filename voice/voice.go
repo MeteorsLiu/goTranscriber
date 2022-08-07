@@ -98,14 +98,17 @@ func (v *Voice) To(r []Region) []*os.File {
 	count := 0
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count >= numConcurrent {
+		if count == numConcurrent {
 			wg.Wait()
 			count = 0
 			if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
 				numConcurrent = 1
 			}
 		}
-		wg.Add(numConcurrent)
+		if count == 0 {
+			wg.Add(numConcurrent)
+		}
+
 		go func() {
 			defer wg.Done()
 			id := <-goid
