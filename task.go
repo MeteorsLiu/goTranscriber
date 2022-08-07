@@ -149,7 +149,7 @@ func DoVad(lang, filename string) {
 	log.Println("Start to upload the video slices")
 	bar := progressbar.Default(int64(len(slices)))
 	count := 0
-	numConcurrent := 15
+	numConcurrent := 10
 	goid := make(chan int)
 	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release

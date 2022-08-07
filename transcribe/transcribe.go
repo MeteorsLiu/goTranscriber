@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	RETRY_TIMES       = 3
+	RETRY_TIMES       = 2
 	KEY               = "AIzaSyBOti4mM-6x9WDnZIjIeyEU21OpBXqWBgw"
 	GOOGLE_COMMON_URL = "http://www.google.com/speech-api/v2/recognize?client=chromium&lang=%s&key=%s"
 	GOOGLE_CN_URL     = "http://www.google.cn/speech-api/v2/recognize?client=chromium&lang=%s&key=%s"
