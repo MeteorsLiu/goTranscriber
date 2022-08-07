@@ -194,12 +194,13 @@ func New(lang string) *Transcriber {
 		log.Fatal("error language code")
 	}
 	var url string
-	if isChina() {
-		url = fmt.Sprintf(GOOGLE_CN_URL, lang, KEY)
-	} else {
-		url = fmt.Sprintf(GOOGLE_COMMON_URL, lang, KEY)
-	}
+	/*
+		if isChina() {
+			url = fmt.Sprintf(GOOGLE_CN_URL, lang, KEY)
+		} else {
 
+		}*/
+	url = fmt.Sprintf(GOOGLE_COMMON_URL, lang, KEY)
 	return &Transcriber{
 		bufPool: sync.Pool{
 			New: func() any {
