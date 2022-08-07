@@ -242,11 +242,13 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) 
 		ret = map[string][]interface{}{}
 		_ = json.Unmarshal(scanner.Bytes(), &ret)
 		//log.Println(ret)
-		if result, ok := ret["result"]; ok {
-			if len(result) == 0 {
-				continue
+		if len(ret) > 0 {
+			if result, ok := ret["result"]; ok {
+				if len(result) == 0 {
+					continue
+				}
+				return ret["result"][0].(map[string]interface{})["alternative"].([]interface{})[0].(map[string]interface{})["transcript"].(string), nil
 			}
-			return ret["result"][0].(map[string]interface{})["alternative"].([]interface{})[0].(map[string]interface{})["transcript"].(string), nil
 		}
 	}
 	return "", MAYBE_RETRY
