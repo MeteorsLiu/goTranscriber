@@ -177,6 +177,7 @@ func DoVad(lang, filename string) {
 			bar.Add(1)
 		}()
 		goid <- index
+		count++
 	}
 	wg.Wait()
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
