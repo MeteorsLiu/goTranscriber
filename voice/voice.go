@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"runtime"
 	"sort"
 	"sync"
 
@@ -93,9 +94,18 @@ func (v *Voice) To(r []Region) []*os.File {
 	// Make sure the least context switching
 	goid := make(chan int)
 	var wg sync.WaitGroup
+	numConcurrent := runtime.NumCPU()
+	count := 0
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		wg.Add(1)
+		if count >= numConcurrent {
+			wg.Wait()
+			count = 0
+			if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
+				numConcurrent = 1
+			}
+		}
+		wg.Add(numConcurrent)
 		go func() {
 			defer wg.Done()
 			id := <-goid
@@ -117,6 +127,7 @@ func (v *Voice) To(r []Region) []*os.File {
 			bar.Add(1)
 		}()
 		goid <- index
+		count++
 	}
 	wg.Wait()
 
