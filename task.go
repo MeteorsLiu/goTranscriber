@@ -170,12 +170,13 @@ func DoVad(lang, filename string) {
 			bar.Add(1)
 		}()
 		goid <- index
+		wg.Wait()
 	}
-	wg.Wait()
+
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 	// sort the map
-	keys := make([]int, len(trans))
-	sortedSubtitle := make([]string, len(trans))
+	var keys []int
+	var sortedSubtitle []string
 	for k := range trans {
 		keys = append(keys, k)
 	}
