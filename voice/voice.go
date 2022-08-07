@@ -72,9 +72,12 @@ func (v *Voice) To(r []Region) []*os.File {
 	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
 	goid := make(chan int)
+	var wg sync.WaitGroup
 	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			id := <-goid
 			f, err := extractSlice(region.Start, region.End, v.file.Name())
 			if err != nil {
@@ -88,6 +91,7 @@ func (v *Voice) To(r []Region) []*os.File {
 		}()
 		goid <- index
 	}
+	wg.Wait()
 
 	// sort the map
 	var keys []int
