@@ -20,7 +20,7 @@ var (
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
 	VAD_FRAME_DURATION             = 20
-	VAD_MODE                       = 1
+	VAD_MODE                       = 0
 )
 
 type Region struct {
@@ -161,6 +161,9 @@ func (v *Voice) Regions() []Region {
 }
 
 func (v *Voice) Vad() []Region {
+	if v.rate != 16000 && v.rate != 32000 && v.rate != 48000 {
+		log.Fatal("error audio frame rate")
+	}
 	WIDTH := v.rate / 1000 * VAD_FRAME_DURATION * 16 / 8
 	frameBuffer := make([]byte, WIDTH)
 	frameSize := v.rate / 1000 * VAD_FRAME_DURATION

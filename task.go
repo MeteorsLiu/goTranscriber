@@ -121,7 +121,7 @@ func Do(lang, filename string) {
 func DoVad(lang, filename string) {
 	t = transcribe.New(lang, true)
 
-	v := voice.New(filename)
+	v := voice.New(filename, true)
 	if v == nil {
 		log.Fatal("Video Instance exits")
 	}
@@ -135,8 +135,8 @@ func DoVad(lang, filename string) {
 	//var wg sync.WaitGroup
 	//var lock sync.Mutex
 	//trans := map[int]string{}
-	regions := v.Regions()
-	if len(regions) == 0 {
+	regions := v.Vad()
+	if len(regions) == 0 || regions == nil {
 		log.Println("unknown regions " + filename)
 		return
 	}
