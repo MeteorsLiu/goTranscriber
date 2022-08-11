@@ -130,7 +130,7 @@ func (v *Voice) To(r []Region) []*os.File {
 			file[id] = f
 			bar.Add(1)
 		}()
-		goid := <-index
+		goid <- index
 		regionCh <- _region
 		count++
 	}
