@@ -16,7 +16,7 @@ import (
 
 var (
 	FRAME_WIDTH            float64 = 4096.0
-	MAX_REGION_SIZE        float64 = 8.0
+	MAX_REGION_SIZE        float64 = 10.0
 	MIN_REGION_SIZE        float64 = 1.0
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
