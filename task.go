@@ -93,7 +93,7 @@ func Do(lang, filename string) {
 				defer lock.Unlock()
 				trans[index] = subtitle
 			}()*/
-		subtitle, err := t.Transcribe(file, false)
+		subtitle, err := t.Transcribe(file)
 		if err != nil {
 			log.Printf("ID: %d error occurs: %v", index, err)
 		}
