@@ -16,8 +16,8 @@ import (
 
 var (
 	FRAME_WIDTH            float64 = 4096.0
-	MAX_REGION_SIZE        float64 = 6.0
-	MIN_REGION_SIZE        float64 = 0.5
+	MAX_REGION_SIZE        float64 = 8.0
+	MIN_REGION_SIZE        float64 = 1.0
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
 	VAD_FRAME_DURATION             = 20
@@ -92,28 +92,26 @@ func (v *Voice) To(r []Region) []*os.File {
 
 	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
-	goid := make(chan int)
-	regionCh := make(chan Region)
+	//goid := make(chan int)
+	//regionCh := make(chan Region)
 	var wg sync.WaitGroup
 	numConcurrent := runtime.NumCPU()
 	count := 0
-	for index, _region := range r {
+	for index, region := range r {
 		// Pause the new goroutine until all goroutines are release
-		if count == numConcurrent {
+		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
-			if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
-				numConcurrent = 1
-			}
-		}
-		if count == 0 {
-			wg.Add(numConcurrent)
+			/*
+				if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
+					numConcurrent = 1
+				}*/
 		}
 
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			id := <-goid
-			region := <-regionCh
+			id := index
 			var f *os.File
 			var err error
 			if v.isVad {
@@ -131,11 +129,11 @@ func (v *Voice) To(r []Region) []*os.File {
 			file[id] = f
 			bar.Add(1)
 		}()
-		goid <- index
-		regionCh <- _region
 		count++
 	}
-	wg.Wait()
+	if count > 0 {
+		wg.Wait()
+	}
 
 	// sort the map
 	var keys []int
@@ -144,7 +142,7 @@ func (v *Voice) To(r []Region) []*os.File {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	//log.Println(keys)
+	log.Println(keys)
 	for _, i := range keys {
 		sortedFile = append(sortedFile, file[i])
 	}

@@ -155,24 +155,21 @@ func DoVad(lang, filename string) {
 	bar := progressbar.Default(int64(len(slices)))
 	numConcurrent := 10
 	count := 0
-	goid := make(chan int)
-	fileCh := make(chan *os.File)
-	for index, _file := range slices {
+	//goid := make(chan int)
+	//fileCh := make(chan *os.File)
+	for index, file := range slices {
 		// Pause the new goroutine until all goroutines are release
 		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
-			if len(slices)-index+1-numConcurrent < 0 && numConcurrent > 1 {
-				numConcurrent = 1
-			}
 		}
-		if count == 0 {
-			wg.Add(numConcurrent)
-		}
+
+		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
-			id := <-goid
-			file := <-fileCh
+			id := index
+			//file := <-fileCh
 			subtitle, err := t.Transcribe(file, true)
 			lock.Lock()
 			defer func() {
@@ -191,12 +188,13 @@ func DoVad(lang, filename string) {
 				Subtitle_String: subtitle,
 			}
 		}()
-		goid <- index
-		fileCh <- _file
+		//goid <- index
+		//fileCh <- _file
 		count++
 	}
-	wg.Wait()
-
+	if count > 0 {
+		wg.Wait()
+	}
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 
 	var keys []int
