@@ -31,6 +31,7 @@ type Region struct {
 type Voice struct {
 	file          *os.File
 	r             *wav.Reader
+	videofile     string
 	rate          int
 	nChannels     int
 	chunkDuration float64
@@ -72,6 +73,7 @@ func New(filename string, isVad bool) *Voice {
 	return &Voice{
 		file:          file,
 		r:             reader,
+		videofile:     filename,
 		isVad:         isVad,
 		rate:          info.FrameRate,
 		nChannels:     info.NChannels,
@@ -116,7 +118,7 @@ func (v *Voice) To(r []Region) []*os.File {
 			var f *os.File
 			var err error
 			if v.isVad {
-				f, err = extractVadSlice(region.Start, region.End, v.file.Name())
+				f, err = extractVadSlice(region.Start, region.End, v.videofile)
 			} else {
 				f, err = extractSlice(region.Start, region.End, v.file.Name())
 			}
