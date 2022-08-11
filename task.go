@@ -93,7 +93,7 @@ func Do(lang, filename string) {
 				defer lock.Unlock()
 				trans[index] = subtitle
 			}()*/
-		subtitle, err := t.Transcribe(file)
+		subtitle, err := t.Transcribe(file, false)
 		if err != nil {
 			log.Printf("ID: %d error occurs: %v", index, err)
 		}
@@ -170,7 +170,7 @@ func DoVad(lang, filename string) {
 			defer wg.Done()
 			id := <-goid
 			file := <-fileCh
-			subtitle, err := t.Transcribe(file)
+			subtitle, err := t.Transcribe(file, true)
 			lock.Lock()
 			defer func() {
 				bar.Add(1)
