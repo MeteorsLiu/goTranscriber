@@ -92,12 +92,12 @@ func (v *Voice) To(r []Region) []*os.File {
 
 	bar := progressbar.Default(int64(len(r)))
 	// Make sure the least context switching
-	//goid := make(chan int)
-	//regionCh := make(chan Region)
+	goid := make(chan int)
+	regionCh := make(chan Region)
 	var wg sync.WaitGroup
 	numConcurrent := runtime.NumCPU()
 	count := 0
-	for index, region := range r {
+	for index, _region := range r {
 		// Pause the new goroutine until all goroutines are release
 		if count >= numConcurrent {
 			wg.Wait()
@@ -111,7 +111,8 @@ func (v *Voice) To(r []Region) []*os.File {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			id := index
+			id := <-goid
+			region := <-regionCh
 			var f *os.File
 			var err error
 			if v.isVad {
@@ -129,6 +130,8 @@ func (v *Voice) To(r []Region) []*os.File {
 			file[id] = f
 			bar.Add(1)
 		}()
+		goid := <-index
+		regionCh <- _region
 		count++
 	}
 	if count > 0 {
