@@ -212,7 +212,7 @@ func New(lang string) *Transcriber {
 	}
 }
 
-func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) {
+func (t *Transcriber) transcribe(buf *bytes.Buffer) (string, error) {
 	defer func() {
 		// Don't let it panic
 		_ = recover()
@@ -224,11 +224,13 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) 
 		return "", err
 	}
 	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
-	if isVad {
-		req.Header.Set("Content-Type", "audio/l16; rate=16000;")
-	} else {
-		req.Header.Set("Content-Type", "audio/l16; rate=44100;")
-	}
+	/*
+		if isVad {
+			req.Header.Set("Content-Type", "audio/l16; rate=16000;")
+		} else {
+			req.Header.Set("Content-Type", "audio/l16; rate=44100;")
+		}*/
+	req.Header.Set("Content-Type", "audio/l16; rate=44100;")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -268,7 +270,7 @@ func doRetry(call func() (string, error)) (string, error) {
 	}
 	return ret, err
 }
-func (t *Transcriber) Transcribe(file *os.File, isVad bool) (string, error) {
+func (t *Transcriber) Transcribe(file *os.File) (string, error) {
 	if file == nil {
 		return "", errors.New("nil pointer")
 	}
@@ -281,11 +283,11 @@ func (t *Transcriber) Transcribe(file *os.File, isVad bool) (string, error) {
 		return "", err
 	}
 	var ret string
-	ret, err = t.transcribe(buf, isVad)
+	ret, err = t.transcribe(buf)
 	if err != nil {
 		if errors.Is(err, MAYBE_RETRY) {
 			ret, err = doRetry(func() (string, error) {
-				return t.transcribe(buf, isVad)
+				return t.transcribe(buf)
 			})
 		}
 		if err != nil {

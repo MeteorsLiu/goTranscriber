@@ -170,7 +170,7 @@ func DoVad(lang, filename string) {
 			defer wg.Done()
 			id := <-goid
 			file := <-fileCh
-			subtitle, err := t.Transcribe(file, true)
+			subtitle, err := t.Transcribe(file)
 			lock.Lock()
 			defer func() {
 				bar.Add(1)
