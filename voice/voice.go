@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	FRAME_WIDTH     float64 = 4096.0
-	MAX_REGION_SIZE float64 = 6.0
-	MIN_REGION_SIZE float64 = 0.5
+	FRAME_WIDTH        float64 = 4096.0
+	MAX_REGION_SIZE    float64 = 6.0
+	MIN_REGION_SIZE    float64 = 0.5
+	VAD_FRAME_DURATION         = 20
 	// make sure the least numbers of slices.
 	VAD_MODE = 0
 )
