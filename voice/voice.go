@@ -16,7 +16,7 @@ import (
 
 var (
 	FRAME_WIDTH            float64 = 4096.0
-	MAX_REGION_SIZE        float64 = 10.0
+	MAX_REGION_SIZE        float64 = 6.0
 	MIN_REGION_SIZE        float64 = 0.5
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
@@ -88,15 +88,16 @@ func (v *Voice) Close() {
 	os.Remove(v.file.Name())
 }
 
-func (v *Voice) To(r []Region) []*os.File {
+func (v *Voice) To(r []Region) []string {
 	var lock sync.Mutex
-	file := map[int]*os.File{}
+	var wg sync.WaitGroup
 
-	bar := progressbar.Default(int64(len(r)))
-	// Make sure the least context switching
+	file := map[int]string{}
 	goid := make(chan int)
 	regionCh := make(chan Region)
-	var wg sync.WaitGroup
+	bar := progressbar.Default(int64(len(r)))
+
+	// Make sure the least context switching
 	numConcurrent := runtime.NumCPU()
 	count := 0
 	for index, _region := range r {
@@ -104,10 +105,6 @@ func (v *Voice) To(r []Region) []*os.File {
 		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
-			/*
-				if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
-					numConcurrent = 1
-				}*/
 		}
 
 		wg.Add(1)
@@ -115,7 +112,7 @@ func (v *Voice) To(r []Region) []*os.File {
 			defer wg.Done()
 			id := <-goid
 			region := <-regionCh
-			var f *os.File
+			var f string
 			var err error
 			if v.isVad {
 				f, err = extractVadSlice(region.Start, region.End, v.videofile)
@@ -142,7 +139,7 @@ func (v *Voice) To(r []Region) []*os.File {
 
 	// sort the map
 	var keys []int
-	var sortedFile []*os.File
+	var sortedFile []string
 	for k := range file {
 		keys = append(keys, k)
 	}

@@ -270,15 +270,23 @@ func doRetry(call func() (string, error)) (string, error) {
 	}
 	return ret, err
 }
-func (t *Transcriber) Transcribe(file *os.File, isVad bool) (string, error) {
-	if file == nil {
+func (t *Transcriber) Transcribe(file string, isVad bool) (string, error) {
+	if file == "" {
 		return "", errors.New("nil pointer")
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return "", errors.New("unknown temp file")
 	}
 	buf := t.bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer t.bufPool.Put(buf)
-	defer os.Remove(file.Name())
-	_, err := io.Copy(buf, file)
+	defer func() {
+		t.bufPool.Put(buf)
+		fn := f.Name()
+		f.Close()
+		os.Remove(fn)
+	}()
+	_, err = io.Copy(buf, f)
 	if err != nil {
 		return "", err
 	}
