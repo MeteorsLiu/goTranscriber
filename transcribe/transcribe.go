@@ -276,8 +276,13 @@ func (t *Transcriber) Transcribe(file *os.File, isVad bool) (string, error) {
 	}
 	buf := t.bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer t.bufPool.Put(buf)
-	defer os.Remove(file.Name())
+	defer func() {
+		t.bufPool.Put(buf)
+		// Release the file descriptor first.
+		fn := file.Name()
+		file.Close()
+		os.Remove(fn)
+	}()
 	_, err := io.Copy(buf, file)
 	if err != nil {
 		return "", err

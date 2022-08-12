@@ -15,13 +15,11 @@ import (
 )
 
 var (
-	FRAME_WIDTH            float64 = 4096.0
-	MAX_REGION_SIZE        float64 = 10.0
-	MIN_REGION_SIZE        float64 = 0.5
-	VAD_FRAME_DURATION_SEC float64 = 0.02
-	MAX_CONCURRENT                 = 10
-	VAD_FRAME_DURATION             = 20
-	VAD_MODE                       = 0
+	FRAME_WIDTH     float64 = 4096.0
+	MAX_REGION_SIZE float64 = 10.0
+	MIN_REGION_SIZE float64 = 0.5
+	// make sure the least numbers of slices.
+	VAD_MODE = 0
 )
 
 type Region struct {
@@ -104,10 +102,6 @@ func (v *Voice) To(r []Region) []*os.File {
 		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
-			/*
-				if len(r)-index+1-numConcurrent < 0 && numConcurrent > 1 {
-					numConcurrent = 1
-				}*/
 		}
 
 		wg.Add(1)
