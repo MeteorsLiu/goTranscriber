@@ -156,7 +156,7 @@ func DoVad(lang, filename string) {
 	numConcurrent := 10
 	count := 0
 	goid := make(chan int)
-	fileCh := make(chan *os.File)
+	fileCh := make(chan string)
 	for index, _file := range slices {
 		// Pause the new goroutine until all goroutines are release
 		if count >= numConcurrent {
