@@ -8,3 +8,6 @@ GoTranscriber启发于pyTranscriber
 
 goTranscriber在处理一个两小时的视频的时候，仅需要100MB内存的占用，相比于pyTranscriber超过1GB内存占用，有了较大的提升。
 
+同时，更换pyTranscriber中的使用计算音频RMS(Root Mean Sqrt)获取声强方式，goTranscriber默认采用16000Hz的WebRTC VAD算法进行检测声音区域，更加精准。
+
+当然，经过一个星期的测试，goTranscriber拥有极佳的稳定性，并不会像pyTranscriber一样随便崩溃。
