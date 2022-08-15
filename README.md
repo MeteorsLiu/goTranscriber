@@ -1,0 +1,10 @@
+# goTranscriber
+
+GoTranscriber启发于pyTranscriber
+
+由于pyTranscriber极其低效的音频转换效率和高额内存占用。
+
+我使用Golang重塑了pyTranscriber
+
+goTranscriber在处理一个两小时的视频的时候，仅需要100MB内存的占用，相比于pyTranscriber超过1GB内存占用，有了较大的提升。
+
