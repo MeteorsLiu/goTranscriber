@@ -153,7 +153,7 @@ func DoVad(lang, filename string) {
 	log.Println("Slices Done")
 	log.Println("Start to upload the video slices")
 	bar := progressbar.Default(int64(len(slices)))
-	numConcurrent := 10
+	numConcurrent := 30
 	count := 0
 	goid := make(chan int)
 	fileCh := make(chan string)

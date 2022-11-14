@@ -179,9 +179,7 @@ func isChina() bool {
 		log.Fatal(err)
 	}
 	ret := map[string]interface{}{}
-	if err := json.Unmarshal(body, &ret); err != nil {
-		log.Fatal(err)
-	}
+	json.Unmarshal(body, &ret)
 	if code, ok := ret["country_code"]; ok {
 		if code.(string) == "CN" {
 			return true
@@ -195,13 +193,14 @@ func New(lang string) *Transcriber {
 		log.Fatal("error language code")
 	}
 	var url string
-	/*
-		if isChina() {
-			url = fmt.Sprintf(GOOGLE_CN_URL, lang, KEY)
-		} else {
 
-		}*/
-	url = fmt.Sprintf(GOOGLE_COMMON_URL, lang, KEY)
+	if isChina() {
+		log.Println("use Google Speech China API")
+		url = fmt.Sprintf(GOOGLE_CN_URL, lang, KEY)
+	} else {
+		url = fmt.Sprintf(GOOGLE_COMMON_URL, lang, KEY)
+	}
+
 	return &Transcriber{
 		bufPool: sync.Pool{
 			New: func() any {
@@ -261,7 +260,7 @@ func doRetry(call func() (string, error)) (string, error) {
 	var ret string
 	init := time.Second
 	for i := 0; i < RETRY_TIMES; i++ {
-		<-time.After(init)
+		time.Sleep(init)
 		ret, err = call()
 		if err == nil {
 			return ret, nil

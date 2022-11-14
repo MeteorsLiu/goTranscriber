@@ -126,8 +126,8 @@ func (v *Voice) To(r []Region) []string {
 			}
 			lock.Lock()
 			defer lock.Unlock()
+			defer bar.Add(1)
 			file[id] = f
-			bar.Add(1)
 		}()
 		goid <- index
 		regionCh <- _region
@@ -144,7 +144,7 @@ func (v *Voice) To(r []Region) []string {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	log.Println(keys)
+	//log.Println(keys)
 	for _, i := range keys {
 		sortedFile = append(sortedFile, file[i])
 	}
