@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/MeteorsLiu/go-wav"
@@ -69,11 +70,16 @@ func New(filename string, isVad bool) *Voice {
 	} else {
 		chunkDuration = FRAME_WIDTH / float64(info.FrameRate)
 	}
+	vfile := filename
+	// wmv may cause pcm convert problem.
+	if strings.HasSuffix(vfile, ".wmv") {
+		vfile = f
+	}
 
 	return &Voice{
 		file:          file,
 		r:             reader,
-		videofile:     filename,
+		videofile:     vfile,
 		isVad:         isVad,
 		rate:          info.FrameRate,
 		nChannels:     info.NChannels,
