@@ -184,9 +184,10 @@ func DoVad(needTranslate bool, lang, filename string) {
 				return
 			}
 			if needTranslate {
+				ts, _ := webapi.RranslateByYouDao(subtitle)
 				trans[id] = Subtitle{
 					Region:          regions[id],
-					Subtitle_String: webapi.RranslateByYouDao(subtitle),
+					Subtitle_String: ts,
 				}
 			} else {
 				trans[id] = Subtitle{
