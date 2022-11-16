@@ -13,6 +13,7 @@ import (
 	"github.com/MeteorsLiu/goSRT/srt"
 	"github.com/MeteorsLiu/goSRT/transcribe"
 	"github.com/MeteorsLiu/goSRT/voice"
+	"github.com/jellyqwq/Paimon/webapi"
 	"github.com/schollz/progressbar/v3"
 )
 
@@ -125,7 +126,7 @@ func Do(lang, filename string) {
 	}
 }
 
-func DoVad(lang, filename string) {
+func DoVad(needTranslate bool, lang, filename string) {
 	t = transcribe.New(lang)
 
 	v := voice.New(filename, true)
@@ -182,11 +183,18 @@ func DoVad(lang, filename string) {
 				}
 				return
 			}
-			//log.Println(subtitle)
-			trans[id] = Subtitle{
-				Region:          regions[id],
-				Subtitle_String: subtitle,
+			if needTranslate {
+				trans[id] = Subtitle{
+					Region:          regions[id],
+					Subtitle_String: webapi.RranslateByYouDao(subtitle),
+				}
+			} else {
+				trans[id] = Subtitle{
+					Region:          regions[id],
+					Subtitle_String: subtitle,
+				}
 			}
+
 		}()
 		goid <- index
 		fileCh <- _file

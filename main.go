@@ -9,11 +9,13 @@ import (
 )
 
 var (
-	lang     string
-	filename string
+	lang          string
+	filename      string
+	needTranslate bool
 )
 
 func main() {
+	flag.BoolVar(&needTranslate, "translate", true, "是否自动翻译成中文")
 	flag.StringVar(&lang, "lang", "", "Source Video Language(源文件语言)")
 	flag.StringVar(&filename, "file", "", "Source Video(原视频文件)")
 	flag.Parse()
@@ -28,6 +30,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	DoVad(lang, filename)
+	DoVad(needTranslate, lang, filename)
 
 }
