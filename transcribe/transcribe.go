@@ -161,7 +161,7 @@ func getMyIP() string {
 	}
 	return string(body)
 }
-func isChina() bool {
+func IsChina() bool {
 	ip := getMyIP()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -194,7 +194,7 @@ func New(lang string) *Transcriber {
 	}
 	var url string
 
-	if isChina() {
+	if IsChina() {
 		log.Println("use Google Speech China API")
 		url = fmt.Sprintf(GOOGLE_CN_URL, lang, KEY)
 	} else {

@@ -13,6 +13,7 @@ import (
 	"github.com/MeteorsLiu/goSRT/srt"
 	"github.com/MeteorsLiu/goSRT/transcribe"
 	"github.com/MeteorsLiu/goSRT/voice"
+	gt "github.com/bas24/googletranslatefree"
 	"github.com/jellyqwq/Paimon/webapi"
 	"github.com/schollz/progressbar/v3"
 )
@@ -127,6 +128,7 @@ func Do(lang, filename string) {
 }
 
 func DoVad(needTranslate bool, lang, filename string) {
+	isChina := transcribe.IsChina()
 	t = transcribe.New(lang)
 
 	v := voice.New(filename, true)
@@ -184,7 +186,15 @@ func DoVad(needTranslate bool, lang, filename string) {
 				return
 			}
 			if needTranslate {
-				ts, _ := webapi.RranslateByYouDao(subtitle)
+				var ts string
+				if isChina {
+					ts, err = webapi.RranslateByYouDao(subtitle)
+				} else {
+					ts, err = gt.Translate(subtitle, "auto", "zh-CN")
+				}
+				if err != nil {
+					ts = subtitle
+				}
 				trans[id] = Subtitle{
 					Region:          regions[id],
 					Subtitle_String: ts,
