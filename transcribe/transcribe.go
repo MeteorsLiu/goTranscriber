@@ -211,14 +211,14 @@ func New(lang string) *Transcriber {
 	}
 }
 
-func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) {
+func (t *Transcriber) transcribe(reader io.Reader, isVad bool) (string, error) {
 	defer func() {
 		// Don't let it panic
 		_ = recover()
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", t.url, buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", t.url, reader)
 	if err != nil {
 		return "", err
 	}
@@ -277,24 +277,17 @@ func (t *Transcriber) Transcribe(file string, isVad bool) (string, error) {
 	if err != nil {
 		return "", errors.New("unknown temp file")
 	}
-	buf := t.bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
 	defer func() {
-		t.bufPool.Put(buf)
 		fn := f.Name()
 		f.Close()
 		os.Remove(fn)
 	}()
-	_, err = io.Copy(buf, f)
-	if err != nil {
-		return "", err
-	}
 	var ret string
-	ret, err = t.transcribe(buf, isVad)
+	ret, err = t.transcribe(f, isVad)
 	if err != nil {
 		if errors.Is(err, MAYBE_RETRY) {
 			ret, err = doRetry(func() (string, error) {
-				return t.transcribe(buf, isVad)
+				return t.transcribe(f, isVad)
 			})
 		}
 		if err != nil {
