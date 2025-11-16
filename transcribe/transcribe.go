@@ -233,7 +233,7 @@ func (t *Transcriber) transcribe(buf *bytes.Buffer, isVad bool) (string, error) 
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", MAYBE_RETRY
 	}
 	defer resp.Body.Close()
 	//log.Println(string(res))
