@@ -56,9 +56,9 @@ func getSrtName(filename string) string {
 func Do(lang, filename string) {
 
 	t = transcribe.New(lang)
-	v := voice.New(filename, false)
-	if v == nil {
-		log.Fatal("Video Instance exits")
+	v, err := voice.New(filename, true)
+	if err != nil {
+		log.Fatal(err)
 	}
 	subrip := s.Get().(*srt.SRT)
 	subrip.Reset()
@@ -131,9 +131,9 @@ func DoVad(needTranslate bool, lang, filename string) {
 	isChina := transcribe.IsChina()
 	t = transcribe.New(lang)
 
-	v := voice.New(filename, true)
-	if v == nil {
-		log.Fatal("Video Instance exits")
+	v, err := voice.New(filename, true)
+	if err != nil {
+		log.Fatal(err)
 	}
 	subrip := s.Get().(*srt.SRT)
 	subrip.Reset()
