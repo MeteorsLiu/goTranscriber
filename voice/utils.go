@@ -21,12 +21,17 @@ func percentile(arr []float64, percent float64) float64 {
 }
 
 func rms(chunk []wav.Sample, nChannel int) float64 {
+	if len(chunk) == 0 {
+		return 0.0
+	}
+
 	var sumsq float64
+	totalSamples := len(chunk) * nChannel
 
 	for _, sample := range chunk {
 		for i := 0; i < nChannel; i++ {
 			sumsq += float64(sample.Values[i] * sample.Values[i])
 		}
 	}
-	return math.Sqrt(sumsq / FRAME_WIDTH)
+	return math.Sqrt(sumsq / float64(totalSamples))
 }

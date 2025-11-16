@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -41,7 +42,7 @@ type Voice struct {
 	isVad         bool
 }
 
-func New(filename string, isVad bool) *Voice {
+func New(filename string, isVad bool) (*Voice, error) {
 	var f string
 	var err error
 	if isVad {
@@ -51,22 +52,31 @@ func New(filename string, isVad bool) *Voice {
 	}
 
 	if err != nil {
-		log.Println(err)
-		os.Remove(f)
-		return nil
+		return nil, err
 	}
 
-	file, _ := os.Open(f)
+	fmt.Println(f)
+
+	file, err := os.Open(f)
+	if err != nil {
+		log.Println("Failed to open audio file:", err)
+		return nil, err
+	}
+
+	fmt.Println("open")
+
 	reader := wav.NewReader(file)
 	info, err := reader.Info()
 	if err != nil {
-		log.Println(err)
-		return nil
+		log.Println("Failed to read audio info:", err)
+		file.Close()
+		return nil, err
 	}
+
 	var chunkDuration float64
 	if isVad {
-		WIDTH := info.FrameRate / 1000 * VAD_FRAME_DURATION * 16 / 8
-		chunkDuration = (float64(WIDTH) / float64(info.FrameRate)) / 2.0
+		// VAD使用20ms帧
+		chunkDuration = VAD_FRAME_DURATION_SEC // 0.02秒
 	} else {
 		chunkDuration = FRAME_WIDTH / float64(info.FrameRate)
 	}
@@ -86,7 +96,7 @@ func New(filename string, isVad bool) *Voice {
 		chunkDuration: chunkDuration,
 		nChunks:       int(math.Ceil(float64(info.NFrames) / FRAME_WIDTH)),
 		sampleWidth:   info.SampleWidth,
-	}
+	}, nil
 }
 
 func (v *Voice) Close() {
@@ -196,11 +206,16 @@ func (v *Voice) Vad() []Region {
 	if v.rate != 16000 && v.rate != 32000 && v.rate != 48000 {
 		log.Fatal("error audio frame rate")
 	}
-	// tell gc to sweep the mem. no more need
-	v.r = nil
-	WIDTH := v.rate / 1000 * VAD_FRAME_DURATION * 16 / 8
-	frameBuffer := make([]byte, WIDTH)
-	frameSize := v.rate / 1000 * VAD_FRAME_DURATION
+
+	// 重新定位到文件开头
+	v.file.Seek(0, 0)
+
+	// WebRTC VAD 帧大小计算 (20ms)
+	frameBytes := v.rate / 50 * v.sampleWidth * v.nChannels // 20ms = 1/50秒
+	frameBuffer := make([]byte, frameBytes)
+	frameSize := v.rate / 50 // 每帧样本数
+
+	// 初始化VAD
 	vadInst := webrtcvad.Create()
 	defer webrtcvad.Free(vadInst)
 	webrtcvad.Init(vadInst)
@@ -209,31 +224,77 @@ func (v *Voice) Vad() []Region {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var region_start float64
-	var elapsed_time float64
+
 	var regions []Region
+	var currentRegionStart float64
+	var isInRegion bool
+	frameTime := 0.02 // 20ms per frame
+	currentTime := 0.0
+
 	for {
-		_, err = v.file.Read(frameBuffer)
+		n, err := v.file.Read(frameBuffer)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			log.Println(err)
-			return nil
+			log.Printf("Error reading frame: %v", err)
+			break
 		}
-		frameActive, _ := webrtcvad.Process(vadInst, v.rate, frameBuffer, frameSize)
-		if (elapsed_time-region_start >= MAX_REGION_SIZE || !frameActive) && region_start != 0 {
-			if elapsed_time-region_start >= MIN_REGION_SIZE {
-				regions = append(regions, Region{
-					Start: region_start,
-					End:   elapsed_time,
-				})
-				region_start = 0
+		if n < frameBytes {
+			break // 不完整的帧，结束处理
+		}
+
+		// 检测当前帧是否包含语音
+		hasVoice, err := webrtcvad.Process(vadInst, v.rate, frameBuffer, frameSize)
+		if err != nil {
+			log.Printf("VAD process error: %v", err)
+			hasVoice = false
+		}
+
+		if hasVoice {
+			if !isInRegion {
+				// 开始新的语音区域
+				currentRegionStart = currentTime
+				isInRegion = true
 			}
-		} else if region_start == 0 && frameActive {
-			region_start = elapsed_time
+		} else {
+			if isInRegion {
+				// 结束当前语音区域
+				regionDuration := currentTime - currentRegionStart
+				if regionDuration >= MIN_REGION_SIZE {
+					regions = append(regions, Region{
+						Start: currentRegionStart,
+						End:   currentTime,
+					})
+				}
+				isInRegion = false
+			}
 		}
-		elapsed_time += v.chunkDuration
+
+		// 检查是否超过最大区域长度
+		if isInRegion && (currentTime-currentRegionStart) >= MAX_REGION_SIZE {
+			regions = append(regions, Region{
+				Start: currentRegionStart,
+				End:   currentTime,
+			})
+			currentRegionStart = currentTime
+		}
+
+		currentTime += frameTime
 	}
+
+	// 处理文件结束时仍在进行的区域
+	if isInRegion {
+		regionDuration := currentTime - currentRegionStart
+		if regionDuration >= MIN_REGION_SIZE {
+			regions = append(regions, Region{
+				Start: currentRegionStart,
+				End:   currentTime,
+			})
+		}
+	}
+
+	// tell gc to sweep the mem. no more need
+	v.r = nil
 	return regions
 }

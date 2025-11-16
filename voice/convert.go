@@ -2,6 +2,7 @@ package voice
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 func exists(cmd string) (string, bool) {
 	path, err := exec.LookPath(cmd)
 	if err != nil {
+		fmt.Println(err)
 		return "", false
 	}
 	return path, true
@@ -35,8 +37,11 @@ func extractVadAudio(filename string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if err := exec.Command(cmd, "-y", "-i", filename, "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
-			return "", err
+		fmt.Println("Vad", audio.Name())
+		cmd := exec.Command(cmd, "-y", "-i", filename, "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name())
+		ret, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", errors.New(string(ret))
 		}
 		return audio.Name(), nil
 	}
@@ -45,15 +50,17 @@ func extractVadAudio(filename string) (string, error) {
 
 func extractSlice(start, end float64, filename string) (string, error) {
 	if cmd, ok := exists("ffmpeg"); ok {
-		audio, err := os.CreateTemp("", "*.wav")
+		audio, err := os.CreateTemp("", "*.pcm")
 		if err != nil {
 			return "", err
 		}
 		defer audio.Close()
-		start_ := strconv.FormatFloat(start+0.25, 'f', -1, 64)
-		_end := strconv.FormatFloat(end-start, 'f', -1, 64)
-		if err := exec.Command(cmd, "-y", "-ss", start_, "-t", _end, "-i", filename, "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
-			return "", err
+		start_ := strconv.FormatFloat(start, 'f', -1, 64)
+		duration := strconv.FormatFloat(end-start, 'f', -1, 64)
+		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename, "-acodec", "pcm_s16le", audio.Name())
+		ret, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", errors.New(string(ret))
 		}
 		return audio.Name(), nil
 	}
@@ -67,10 +74,14 @@ func extractVadSlice(start, end float64, filename string) (string, error) {
 			return "", err
 		}
 		defer audio.Close()
-		start_ := strconv.FormatFloat(start+0.25, 'f', -1, 64)
-		_end := strconv.FormatFloat(end-start, 'f', -1, 64)
-		if err := exec.Command(cmd, "-y", "-ss", start_, "-t", _end, "-i", filename, "-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le", audio.Name()).Run(); err != nil {
-			return "", err
+		start_ := strconv.FormatFloat(start, 'f', -1, 64)
+		duration := strconv.FormatFloat(end-start, 'f', -1, 64)
+
+		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename, "-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le", audio.Name())
+
+		ret, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", errors.New(string(ret))
 		}
 		return audio.Name(), nil
 	}

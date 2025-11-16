@@ -3,11 +3,12 @@ package voice
 import "testing"
 
 func TestVoice(t *testing.T) {
-	f := New("/home/nfs/py/GVRD-94/GVRD-94_01.mkv", true)
-	if f == nil {
-		t.Error("cannot read file")
+	f, err := New("test_test.mp3", true)
+	if err != nil {
+		t.Error("cannot read file", err)
 		return
 	}
-	defer f.Close()
-	t.Log(f.Vad())
+	region := f.Vad()
+
+	t.Log(f.To(region))
 }
