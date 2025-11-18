@@ -18,12 +18,13 @@ import (
 
 var (
 	FRAME_WIDTH            float64 = 4096.0
-	MAX_REGION_SIZE        float64 = 6.0
-	MIN_REGION_SIZE        float64 = 0.5
+	MAX_REGION_SIZE        float64 = 10.0 // 硬限制：强制切分
+	SOFT_REGION_SIZE       float64 = 6.0  // 软限制：到达后在静音处切分
+	MIN_REGION_SIZE        float64 = 0.8
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
-	VAD_FRAME_DURATION             = 20
-	VAD_MODE                       = 0
+	VAD_MODE                       = 2
+	VAD_TOLERANCE_FRAMES           = 15 // 容忍帧(400ms)的静音，避免BGM间隙导致碎片化
 )
 
 type Region struct {
@@ -228,7 +229,9 @@ func (v *Voice) Vad() []Region {
 	var regions []Region
 	var currentRegionStart float64
 	var isInRegion bool
-	frameTime := 0.02 // 20ms per frame
+	var silenceFrameCount int // 连续静音帧计数
+	var needsSoftSplit bool   // 是否需要在静音处软切分
+	frameTime := 0.02         // 20ms per frame
 	currentTime := 0.0
 
 	for {
@@ -252,32 +255,65 @@ func (v *Voice) Vad() []Region {
 		}
 
 		if hasVoice {
+			// 重置静音计数
+			silenceFrameCount = 0
 			if !isInRegion {
 				// 开始新的语音区域
 				currentRegionStart = currentTime
 				isInRegion = true
+				needsSoftSplit = false
 			}
 		} else {
 			if isInRegion {
-				// 结束当前语音区域
-				regionDuration := currentTime - currentRegionStart
-				if regionDuration >= MIN_REGION_SIZE {
-					regions = append(regions, Region{
-						Start: currentRegionStart,
-						End:   currentTime,
-					})
+				// 增加静音帧计数
+				silenceFrameCount++
+
+				// 如果已标记需要软切分，且检测到静音，则在此处切分
+				if needsSoftSplit && silenceFrameCount > VAD_TOLERANCE_FRAMES {
+					regionEnd := currentTime - float64(VAD_TOLERANCE_FRAMES)*frameTime
+					regionDuration := regionEnd - currentRegionStart
+					if regionDuration >= MIN_REGION_SIZE {
+						regions = append(regions, Region{
+							Start: currentRegionStart,
+							End:   regionEnd,
+						})
+					}
+					isInRegion = false
+					silenceFrameCount = 0
+					needsSoftSplit = false
+				} else if !needsSoftSplit && silenceFrameCount > VAD_TOLERANCE_FRAMES {
+					// 正常的静音结束
+					regionEnd := currentTime - float64(VAD_TOLERANCE_FRAMES)*frameTime
+					regionDuration := regionEnd - currentRegionStart
+					if regionDuration >= MIN_REGION_SIZE {
+						regions = append(regions, Region{
+							Start: currentRegionStart,
+							End:   regionEnd,
+						})
+					}
+					isInRegion = false
+					silenceFrameCount = 0
 				}
-				isInRegion = false
 			}
 		}
 
-		// 检查是否超过最大区域长度
-		if isInRegion && (currentTime-currentRegionStart) >= MAX_REGION_SIZE {
-			regions = append(regions, Region{
-				Start: currentRegionStart,
-				End:   currentTime,
-			})
-			currentRegionStart = currentTime
+		// 检查区域长度（软硬限制）
+		if isInRegion {
+			regionDuration := currentTime - currentRegionStart
+
+			// 达到硬限制，强制切分
+			if regionDuration >= MAX_REGION_SIZE {
+				regions = append(regions, Region{
+					Start: currentRegionStart,
+					End:   currentTime,
+				})
+				currentRegionStart = currentTime
+				silenceFrameCount = 0
+				needsSoftSplit = false
+			} else if regionDuration >= SOFT_REGION_SIZE && !needsSoftSplit {
+				// 达到软限制，标记在下次静音时切分
+				needsSoftSplit = true
+			}
 		}
 
 		currentTime += frameTime
@@ -285,11 +321,12 @@ func (v *Voice) Vad() []Region {
 
 	// 处理文件结束时仍在进行的区域
 	if isInRegion {
-		regionDuration := currentTime - currentRegionStart
+		regionEnd := currentTime - float64(silenceFrameCount)*frameTime
+		regionDuration := regionEnd - currentRegionStart
 		if regionDuration >= MIN_REGION_SIZE {
 			regions = append(regions, Region{
 				Start: currentRegionStart,
-				End:   currentTime,
+				End:   regionEnd,
 			})
 		}
 	}

@@ -38,7 +38,11 @@ func extractVadAudio(filename string) (string, error) {
 			return "", err
 		}
 		fmt.Println("Vad", audio.Name())
-		cmd := exec.Command(cmd, "-y", "-i", filename, "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name())
+		// VAD检测用激进滤镜：准确找到人声区域，抑制BGM干扰
+		// dialoguenhance强力提取人声，窄频段(300-2500Hz)，强降噪
+		cmd := exec.Command(cmd, "-y", "-i", filename,
+			"-af", "dialoguenhance=original=0:enhance=1,highpass=f=300,lowpass=f=2500,arnndn=m=/Users/haolan/project/goTranscriber/voice/cb.rnnn",
+			"-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name())
 		ret, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", errors.New(string(ret))
@@ -77,7 +81,8 @@ func extractVadSlice(start, end float64, filename string) (string, error) {
 		start_ := strconv.FormatFloat(start, 'f', -1, 64)
 		duration := strconv.FormatFloat(end-start, 'f', -1, 64)
 
-		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename, "-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le", audio.Name())
+		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename,
+			"-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le", audio.Name())
 
 		ret, err := cmd.CombinedOutput()
 		if err != nil {
