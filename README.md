@@ -14,7 +14,13 @@ goTranscriber在处理一个两小时的视频的时候，仅需要100MB内存�
 
 # 基本设计
 
-`视频` -> `FFmpeg预处理音频` -> `WebRTC VAD (保守模式)识别音频区域` -> `切片` -> `多线程上传Google TTS API` -> `翻译` -> `生成SRT文件`
+`视频` -> `FFmpeg预处理音频` -> `WebRTC VAD (保守模式)识别音频区域` -> `切片` -> `多线程上传Google Speech-To-Text API` -> `翻译` -> `生成SRT文件`
+
+# 问题
+
+1. `WebRTC VAD` 识别正确性很高，但是切片会原本是同一句话硬切成两份，这是因为`Google Speech-To-Text API`最多容许10秒（实测，官方说12秒）音频片段。
+2. `BGM`会一定程度上影响识别
+
 
 # 安装教程
 
