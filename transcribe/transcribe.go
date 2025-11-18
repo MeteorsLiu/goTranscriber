@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -211,23 +212,31 @@ func New(lang string) *Transcriber {
 	}
 }
 
-func (t *Transcriber) transcribe(reader io.Reader, isVad bool) (string, error) {
+type googleResponse struct {
+	Result []struct {
+		Alternative []struct {
+			Transcript string `json:"transcript"`
+		} `json:"alternative"`
+	} `json:"result"`
+}
+
+func (t *Transcriber) transcribe(file *os.File) (string, error) {
 	defer func() {
 		// Don't let it panic
 		_ = recover()
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", t.url, reader)
+	req, err := http.NewRequestWithContext(ctx, "POST", t.url, file)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36")
 
-	if isVad {
+	if strings.HasSuffix(file.Name(), ".pcm") {
 		req.Header.Set("Content-Type", "audio/l16; rate=16000;")
 	} else {
-		req.Header.Set("Content-Type", "audio/l16; rate=44100;")
+		req.Header.Set("Content-Type", "audio/x-flac; rate=44100;")
 	}
 	//req.Header.Set("Content-Type", "audio/l16; rate=44100;")
 
@@ -236,19 +245,17 @@ func (t *Transcriber) transcribe(reader io.Reader, isVad bool) (string, error) {
 		return "", MAYBE_RETRY
 	}
 	defer resp.Body.Close()
-	//log.Println(string(res))
-	var ret map[string][]interface{}
+
 	scanner := bufio.NewScanner(resp.Body)
+
 	for scanner.Scan() {
-		ret = map[string][]interface{}{}
+		var ret googleResponse
+
 		_ = json.Unmarshal(scanner.Bytes(), &ret)
 		//log.Println(ret)
-		if len(ret) > 0 {
-			if result, ok := ret["result"]; ok {
-				if len(result) == 0 {
-					continue
-				}
-				return ret["result"][0].(map[string]interface{})["alternative"].([]interface{})[0].(map[string]interface{})["transcript"].(string), nil
+		for _, res := range ret.Result {
+			if len(res.Alternative) > 0 && res.Alternative[0].Transcript != "" {
+				return res.Alternative[0].Transcript, nil
 			}
 		}
 	}
@@ -283,11 +290,11 @@ func (t *Transcriber) Transcribe(file string, isVad bool) (string, error) {
 		os.Remove(fn)
 	}()
 	var ret string
-	ret, err = t.transcribe(f, isVad)
+	ret, err = t.transcribe(f)
 	if err != nil {
 		if errors.Is(err, MAYBE_RETRY) {
 			ret, err = doRetry(func() (string, error) {
-				return t.transcribe(f, isVad)
+				return t.transcribe(f)
 			})
 		}
 		if err != nil {

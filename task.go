@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -50,7 +51,20 @@ func getSrtName(filename string) string {
 	fn := filepath.Base(filename)
 	dir := filepath.Dir(filename)
 	prefix := strings.Split(fn, ".")[0]
-	return filepath.Join(dir, prefix+".srt")
+
+	srtname := filepath.Join(dir, prefix+".srt")
+
+	if _, err := os.Stat(srtname); err == nil {
+		tempFile, err := os.CreateTemp(dir, fmt.Sprintf("%s_*.srt", prefix))
+		if err != nil {
+			panic(err)
+		}
+		tempFile.Close()
+
+		srtname = tempFile.Name()
+	}
+
+	return srtname
 }
 
 func Do(lang, filename string) {
