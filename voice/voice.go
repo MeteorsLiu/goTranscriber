@@ -20,11 +20,11 @@ var (
 	FRAME_WIDTH            float64 = 4096.0
 	MAX_REGION_SIZE        float64 = 10.0 // 硬限制：强制切分
 	SOFT_REGION_SIZE       float64 = 6.0  // 软限制：到达后在静音处切分
-	MIN_REGION_SIZE        float64 = 0.8
+	MIN_REGION_SIZE        float64 = 0.5
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
-	VAD_MODE                       = 2
-	VAD_TOLERANCE_FRAMES           = 15 // 容忍帧(400ms)的静音，避免BGM间隙导致碎片化
+	VAD_MODE                       = 1
+	VAD_TOLERANCE_FRAMES           = 10 // 容忍帧(200ms)的静音，避免BGM间隙导致碎片化
 )
 
 type Region struct {
