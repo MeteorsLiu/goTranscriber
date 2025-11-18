@@ -12,6 +12,9 @@ goTranscriber在处理一个两小时的视频的时候，仅需要100MB内存�
 
 当然，经过一个星期的测试，goTranscriber拥有极佳的稳定性，并不会像pyTranscriber一样随便崩溃。
 
+# 基本设计
+
+`视频` -> `FFmpeg预处理音频` -> `WebRTC VAD (保守模式)识别音频区域` -> `切片` -> `多线程上传Google TTS API` -> `翻译` -> `生成SRT文件`
 
 # 安装教程
 
