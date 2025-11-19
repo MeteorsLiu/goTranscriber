@@ -93,14 +93,17 @@ func getAudioInfo(filename string) (*AudioInfo, error) {
 	}, nil
 }
 
-func extractAudio(filename string) (string, error) {
-	if cmd, ok := exists("ffmpeg"); ok {
+// for .wmv
+func extractWavAudio(filename string) (string, error) {
+	if ffmpeg, ok := exists("ffmpeg"); ok {
 		audio, err := os.CreateTemp("", "*.wav")
 		if err != nil {
 			return "", err
 		}
-		if err := exec.Command(cmd, "-y", "-i", filename, "-ar", "44100", "-ac", "1", audio.Name()).Run(); err != nil {
-			return "", err
+		cmd := exec.Command(ffmpeg, "-y", "-i", filename, "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name())
+		ret, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", errors.New(string(ret))
 		}
 		return audio.Name(), nil
 	}
@@ -126,25 +129,6 @@ func extractVadAudio(filename string) (string, error) {
 	return "", errors.New("please install ffmpeg")
 }
 
-func extractSlice(start, end float64, filename string) (string, error) {
-	if cmd, ok := exists("ffmpeg"); ok {
-		audio, err := os.CreateTemp("", "*.pcm")
-		if err != nil {
-			return "", err
-		}
-		defer audio.Close()
-		start_ := strconv.FormatFloat(start, 'f', -1, 64)
-		duration := strconv.FormatFloat(end-start, 'f', -1, 64)
-		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename, "-acodec", "pcm_s16le", audio.Name())
-		ret, err := cmd.CombinedOutput()
-		if err != nil {
-			return "", errors.New(string(ret))
-		}
-		return audio.Name(), nil
-	}
-	return "", errors.New("please install ffmpeg")
-}
-
 func extractVadSlice(start, end float64, filename string) (string, error) {
 	if cmd, ok := exists("ffmpeg"); ok {
 		audio, err := os.CreateTemp("", "*.pcm")
@@ -152,8 +136,10 @@ func extractVadSlice(start, end float64, filename string) (string, error) {
 			return "", err
 		}
 		defer audio.Close()
-		start_ := strconv.FormatFloat(max(0, start-0.25), 'f', -1, 64)
-		duration := strconv.FormatFloat(end-start+0.25, 'f', -1, 64)
+
+		// 强制切片可能会导致一句话被切成两段，多加0.25秒目的是，尽量保证前一句话完整，实际上还挺有用的
+		start_ := strconv.FormatFloat(start, 'f', -1, 64)
+		duration := strconv.FormatFloat(end-start, 'f', -1, 64)
 
 		cmd := exec.Command(cmd, "-y", "-ss", start_, "-t", duration, "-i", filename, "-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le", audio.Name())
 

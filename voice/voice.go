@@ -1,17 +1,14 @@
 package voice
 
 import (
-	"fmt"
 	"io"
 	"log"
-	"math"
 	"os"
 	"runtime"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/MeteorsLiu/go-wav"
 	"github.com/baabaaox/go-webrtcvad"
 	"github.com/schollz/progressbar/v3"
 )
@@ -19,101 +16,56 @@ import (
 var (
 	FRAME_WIDTH            float64 = 4096.0
 	MAX_REGION_SIZE        float64 = 10.0 // 硬限制：强制切分
-	SOFT_REGION_SIZE       float64 = 6.0  // 软限制：到达后在静音处切分
 	MIN_REGION_SIZE        float64 = 0.5
 	VAD_FRAME_DURATION_SEC float64 = 0.02
 	MAX_CONCURRENT                 = 10
 	VAD_MODE                       = 2
-	VAD_TOLERANCE_FRAMES           = 10 // 容忍帧(100ms)的静音，避免BGM间隙导致碎片化
+	SOFT_REGION_SIZE       float64 = 4.5 // 软限制：超过此长度考虑在停顿处切分
+
+	// VAD停顿检测参数（帧数，20ms/帧）
+	IGNORE_PAUSE_FRAMES = 10 // 200ms - 忽略的短停顿
+	MEDIUM_PAUSE_FRAMES = 20 // 400ms - 中等停顿，软限制时可切分
+	LONG_PAUSE_FRAMES   = 35 // 700ms - 长停顿，总是切分
+
+	// 切片参数
+	REGION_OVERLAP = 0.25 // 区域重叠时间（秒），避免硬切分把词切断
 )
 
 type Region struct {
 	Start float64
 	End   float64
 }
+
 type Voice struct {
-	file          *os.File
-	r             *wav.Reader
-	videofile     string
-	rate          int
-	nChannels     int
-	chunkDuration float64
-	nChunks       int
-	sampleWidth   int
-	isVad         bool
+	file      *os.File
+	videofile string
 }
 
-func New(filename string, isVad bool) (*Voice, error) {
-	var f string
-	var err error
-	if isVad {
-		f, err = extractVadAudio(filename)
-	} else {
-		f, err = extractAudio(filename)
+func New(filename string) (*Voice, error) {
+	// wmv may cause pcm convert problem.
+	if strings.HasSuffix(filename, ".wmv") {
+		wavFile, err := extractWavAudio(filename)
+		if err != nil {
+			return nil, err
+		}
+		filename = wavFile
 	}
 
+	pcmFileName, err := extractVadAudio(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println(f)
-	var info *AudioInfo
-
-	// For VAD mode, open PCM file
-	var pcmFile *os.File
-	if isVad {
-		pcmFile, err = os.Open(f)
-		if err != nil {
-			log.Println("Failed to open PCM file:", err)
-			return nil, err
-		}
+	pcmFile, err := os.Open(pcmFileName)
+	if err != nil {
+		log.Println("Failed to open PCM file:", err)
+		return nil, err
 	}
 
-	// For non-VAD mode, we need wav.Reader for Regions()
-	var reader *wav.Reader
-	if !isVad {
-		file, err := os.Open(f)
-		if err != nil {
-			log.Println("Failed to open audio file:", err)
-			return nil, err
-		}
-		reader = wav.NewReader(file)
-		// Use ffprobe to get audio info from original video file
-		info, err = getAudioInfo(filename)
-		if err != nil {
-			log.Println("Failed to read audio info:", err)
-			return nil, err
-		}
-	}
-
-	var chunkDuration float64
-	if isVad {
-		// VAD使用20ms帧
-		chunkDuration = VAD_FRAME_DURATION_SEC // 0.02秒
-	} else {
-		chunkDuration = FRAME_WIDTH / float64(info.SampleRate)
-	}
-	vfile := filename
-	// wmv may cause pcm convert problem.
-	if strings.HasSuffix(vfile, ".wmv") {
-		vfile = f
-	}
-
-	v := &Voice{
-		file:          pcmFile,
-		r:             reader,
-		videofile:     vfile,
-		isVad:         isVad,
-		chunkDuration: chunkDuration,
-	}
-
-	if info != nil {
-		v.nChannels = info.Channels
-		v.sampleWidth = info.SampleWidth
-		v.rate = info.SampleRate
-		v.nChunks = int(math.Ceil(float64(info.Samples) / FRAME_WIDTH))
-	}
-	return v, nil
+	return &Voice{
+		file:      pcmFile,
+		videofile: filename,
+	}, nil
 }
 
 func (v *Voice) Close() {
@@ -130,11 +82,9 @@ func (v *Voice) To(r []Region) []string {
 	regionCh := make(chan Region)
 	bar := progressbar.Default(int64(len(r)))
 
-	// Make sure the least context switching
 	numConcurrent := runtime.NumCPU()
 	count := 0
 	for index, _region := range r {
-		// Pause the new goroutine until all goroutines are release
 		if count >= numConcurrent {
 			wg.Wait()
 			count = 0
@@ -145,14 +95,8 @@ func (v *Voice) To(r []Region) []string {
 			defer wg.Done()
 			id := <-goid
 			region := <-regionCh
-			var f string
-			var err error
-			if v.isVad {
-				f, err = extractVadSlice(region.Start, region.End, v.videofile)
-			} else {
-				f, err = extractSlice(region.Start, region.End, v.file.Name())
-			}
 
+			f, err := extractVadSlice(region.Start, region.End, v.videofile)
 			if err != nil {
 				log.Println(err)
 				return
@@ -170,82 +114,50 @@ func (v *Voice) To(r []Region) []string {
 		wg.Wait()
 	}
 
-	// sort the map
 	var keys []int
 	var sortedFile []string
 	for k := range file {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	//log.Println(keys)
 	for _, i := range keys {
 		sortedFile = append(sortedFile, file[i])
 	}
 	return sortedFile
 }
-func (v *Voice) Regions() []Region {
-	var energies []float64
-	for i := 0; i < v.nChunks; i++ {
-		samples, err := v.r.ReadSamples(4096)
-		if err == io.EOF {
-			break
-		}
-		energies = append(energies, rms(samples, v.nChannels))
-	}
-	threshold := percentile(energies, 0.2)
-	var is_silence bool
-	var max_exceeded bool
-	var regions []Region
-	var region_start float64
-	var elapsed_time float64
-	for _, energy := range energies {
-		is_silence = energy <= threshold
-		max_exceeded = region_start != 0 && (elapsed_time-region_start >= MAX_REGION_SIZE)
-		if (max_exceeded || is_silence) && region_start != 0 {
-			if elapsed_time-region_start >= MIN_REGION_SIZE {
-				regions = append(regions, Region{
-					Start: region_start,
-					End:   elapsed_time,
-				})
-				region_start = 0
-			}
-		} else if region_start == 0 && !is_silence {
-			region_start = elapsed_time
-		}
-		elapsed_time += v.chunkDuration
-	}
-	// tell gc to sweep the mem. no more need
-	v.r = nil
-	return regions
+
+// Vad 两步走：先VAD识别区域，再用频谱分析过滤BGM
+func (v *Voice) Vad() []Region {
+	// 步骤1: VAD识别所有声音区域
+	rawRegions := v.detectVoiceRegions()
+	log.Printf("VAD detected %d raw regions", len(rawRegions))
+
+	// // 步骤2: 频谱分析过滤BGM
+	// refinedRegions := v.refineRegionsWithSpectral(rawRegions)
+	// log.Printf("Spectral analysis refined to %d regions", len(refinedRegions))
+
+	return rawRegions
 }
 
-func (v *Voice) Vad() []Region {
-	// 重新定位到文件开头
+// detectVoiceRegions 使用VAD识别声音区域
+func (v *Voice) detectVoiceRegions() []Region {
 	v.file.Seek(0, 0)
 
-	// WebRTC VAD 帧大小计算 (20ms)
-	// buffer = rate / vad_block_duration_sec(20ms = 1/50s) * bits_per_sample(16) / 8 = 16000 / 50 * 2
-	frameBytes := 16000 / 50 * 2 // 20ms = 1/50秒
+	frameBytes := 16000 / 50 * 2
 	frameBuffer := make([]byte, frameBytes)
-	frameSize := 16000 / 50 // 每帧样本数
+	frameSize := 16000 / 50
+	frameTime := 0.02
 
-	// 初始化VAD
 	vadInst := webrtcvad.Create()
 	defer webrtcvad.Free(vadInst)
 	webrtcvad.Init(vadInst)
-
-	err := webrtcvad.SetMode(vadInst, VAD_MODE)
-	if err != nil {
-		log.Fatal(err)
-	}
+	webrtcvad.SetMode(vadInst, VAD_MODE)
 
 	var regions []Region
 	var currentRegionStart float64
 	var isInRegion bool
-	var silenceFrameCount int // 连续静音帧计数
-	var needsSoftSplit bool   // 是否需要在静音处软切分
-	frameTime := 0.02         // 20ms per frame
 	currentTime := 0.0
+	silenceFrames := 0 // 连续无声帧计数
 
 	for {
 		n, err := v.file.Read(frameBuffer)
@@ -257,10 +169,9 @@ func (v *Voice) Vad() []Region {
 			break
 		}
 		if n < frameBytes {
-			break // 不完整的帧，结束处理
+			break
 		}
 
-		// 检测当前帧是否包含语音
 		hasVoice, err := webrtcvad.Process(vadInst, 16000, frameBuffer, frameSize)
 		if err != nil {
 			log.Printf("VAD process error: %v", err)
@@ -268,83 +179,82 @@ func (v *Voice) Vad() []Region {
 		}
 
 		if hasVoice {
-			// 重置静音计数
-			silenceFrameCount = 0
 			if !isInRegion {
-				// 开始新的语音区域
 				currentRegionStart = currentTime
 				isInRegion = true
-				needsSoftSplit = false
 			}
+			silenceFrames = 0
 		} else {
 			if isInRegion {
-				// 增加静音帧计数
-				silenceFrameCount++
+				silenceFrames++
+				regionDuration := currentTime - currentRegionStart
 
-				// 如果已标记需要软切分，且检测到静音，则在此处切分
-				if needsSoftSplit && silenceFrameCount > VAD_TOLERANCE_FRAMES {
-					regionEnd := currentTime - float64(VAD_TOLERANCE_FRAMES)*frameTime
-					regionDuration := regionEnd - currentRegionStart
-					if regionDuration >= MIN_REGION_SIZE {
+				// 检查是否应该在停顿处切分
+				shouldSplit := false
+
+				// 长停顿：总是切分（>700ms）
+				if silenceFrames >= LONG_PAUSE_FRAMES {
+					shouldSplit = true
+					log.Printf("Long pause: %d frames at %.2fs", silenceFrames, currentTime)
+				} else if silenceFrames >= MEDIUM_PAUSE_FRAMES && regionDuration >= SOFT_REGION_SIZE {
+					// 中等停顿：如果已超过软限制则切分（>400ms且区域>4.5s）
+					shouldSplit = true
+					log.Printf("Medium pause with soft limit: %d frames at %.2fs (dur %.2fs)",
+						silenceFrames, currentTime, regionDuration)
+				}
+
+				if shouldSplit {
+					// 在停顿开始处切分，当前区域End延长0.25秒，下一个区域Start提前0.25秒
+					splitPoint := currentTime - float64(silenceFrames)*frameTime
+					if splitPoint-currentRegionStart >= MIN_REGION_SIZE {
 						regions = append(regions, Region{
 							Start: currentRegionStart,
-							End:   regionEnd,
+							End:   splitPoint + REGION_OVERLAP, // 延长0.25秒避免切断词
 						})
+						log.Printf("VAD split: %.2f-%.2f (%.2fs)",
+							currentRegionStart, splitPoint+REGION_OVERLAP, splitPoint+REGION_OVERLAP-currentRegionStart)
 					}
-					isInRegion = false
-					silenceFrameCount = 0
-					needsSoftSplit = false
-				} else if !needsSoftSplit && silenceFrameCount > VAD_TOLERANCE_FRAMES {
-					// 正常的静音结束
-					regionEnd := currentTime - float64(VAD_TOLERANCE_FRAMES)*frameTime
-					regionDuration := regionEnd - currentRegionStart
-					if regionDuration >= MIN_REGION_SIZE {
-						regions = append(regions, Region{
-							Start: currentRegionStart,
-							End:   regionEnd,
-						})
+					// 下一个区域从停顿点往前0.25秒开始（保留重叠）
+					nextStart := splitPoint - REGION_OVERLAP
+					if nextStart < 0 {
+						nextStart = 0
 					}
+					currentRegionStart = nextStart
 					isInRegion = false
-					silenceFrameCount = 0
+					silenceFrames = 0
 				}
 			}
 		}
 
-		// 检查区域长度（软硬限制）
-		if isInRegion {
-			regionDuration := currentTime - currentRegionStart
-
-			// 达到硬限制，强制切分
-			if regionDuration >= MAX_REGION_SIZE {
-				regions = append(regions, Region{
-					Start: currentRegionStart,
-					End:   currentTime,
-				})
-				currentRegionStart = currentTime
-				silenceFrameCount = 0
-				needsSoftSplit = false
-			} else if regionDuration >= SOFT_REGION_SIZE && !needsSoftSplit {
-				// 达到软限制，标记在下次静音时切分
-				needsSoftSplit = true
+		// 硬限制：超过最大长度强制切分
+		if isInRegion && (currentTime-currentRegionStart) >= MAX_REGION_SIZE {
+			regions = append(regions, Region{
+				Start: currentRegionStart,
+				End:   currentTime + REGION_OVERLAP, // 延长0.25秒避免切断词
+			})
+			log.Printf("Hard limit: %.2f-%.2f (%.2fs)",
+				currentRegionStart, currentTime+REGION_OVERLAP, currentTime+REGION_OVERLAP-currentRegionStart)
+			// 下一个区域从当前时间往前0.25秒开始（保留重叠）
+			nextStart := currentTime - REGION_OVERLAP
+			if nextStart < 0 {
+				nextStart = 0
 			}
+			currentRegionStart = nextStart
 		}
 
 		currentTime += frameTime
 	}
 
-	// 处理文件结束时仍在进行的区域
+	// 处理文件结束时的区域
 	if isInRegion {
-		regionEnd := currentTime - float64(silenceFrameCount)*frameTime
-		regionDuration := regionEnd - currentRegionStart
+		regionDuration := currentTime - currentRegionStart
 		if regionDuration >= MIN_REGION_SIZE {
 			regions = append(regions, Region{
 				Start: currentRegionStart,
-				End:   regionEnd,
+				End:   currentTime,
 			})
 		}
 	}
 
-	// tell gc to sweep the mem. no more need
-	v.r = nil
 	return regions
 }
