@@ -67,11 +67,20 @@ func srtNameOf(filename string) string {
 	return srtname
 }
 
-func DoVad(needTranslate bool, lang, filename string) {
+func DoVad(needTranslate bool, lang, filename, vadMode string) {
 	isChina := transcribe.IsChina()
 	t = transcribe.New(lang)
 
-	v, err := voice.New(filename)
+	// 选择VAD模式
+	mode := voice.VadModeWebRTC
+	if vadMode == "energy" {
+		mode = voice.VadModeEnergy
+		log.Println("Using Energy-based VAD (autosub method)")
+	} else {
+		log.Println("Using WebRTC VAD (default)")
+	}
+
+	v, err := voice.NewWithMode(filename, mode)
 	if err != nil {
 		log.Fatal(err)
 	}

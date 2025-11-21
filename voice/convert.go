@@ -100,7 +100,7 @@ func extractWavAudio(filename string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		cmd := exec.Command(ffmpeg, "-y", "-i", filename, "-ar", "16000", "-ac", "1", "-acodec", "pcm_s16le", audio.Name())
+		cmd := exec.Command(ffmpeg, "-y", "-i", filename, "-ar", "16000", "-ac", "1", audio.Name())
 		ret, err := cmd.CombinedOutput()
 		if err != nil {
 			return "", errors.New(string(ret))

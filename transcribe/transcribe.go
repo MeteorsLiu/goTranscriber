@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	RETRY_TIMES       = 2
+	RETRY_TIMES       = 3
 	KEY               = "AIzaSyBOti4mM-6x9WDnZIjIeyEU21OpBXqWBgw"
 	GOOGLE_COMMON_URL = "http://www.google.com/speech-api/v2/recognize?client=chromium&lang=%s&key=%s"
 	GOOGLE_CN_URL     = "http://www.google.cn/speech-api/v2/recognize?client=chromium&lang=%s&key=%s"
@@ -220,13 +220,20 @@ type googleResponse struct {
 	} `json:"result"`
 }
 
-func (t *Transcriber) transcribe(file *os.File) (string, error) {
+func (t *Transcriber) transcribe(fileName string) (string, error) {
 	defer func() {
 		// Don't let it panic
 		_ = recover()
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
 	req, err := http.NewRequestWithContext(ctx, "POST", t.url, file)
 	if err != nil {
 		return "", err
@@ -236,7 +243,7 @@ func (t *Transcriber) transcribe(file *os.File) (string, error) {
 	if strings.HasSuffix(file.Name(), ".pcm") {
 		req.Header.Set("Content-Type", "audio/l16; rate=16000;")
 	} else {
-		req.Header.Set("Content-Type", "audio/x-flac; rate=44100;")
+		req.Header.Set("Content-Type", "audio/x-flac; rate=16000;")
 	}
 	//req.Header.Set("Content-Type", "audio/l16; rate=44100;")
 
@@ -265,14 +272,11 @@ func (t *Transcriber) transcribe(file *os.File) (string, error) {
 func doRetry(call func() (string, error)) (string, error) {
 	var err error
 	var ret string
-	init := time.Second
 	for i := 0; i < RETRY_TIMES; i++ {
-		time.Sleep(init)
 		ret, err = call()
 		if err == nil {
 			return ret, nil
 		}
-		init = time.Duration(int(2^(i+1)/2)) * time.Second
 	}
 	return ret, err
 }
@@ -280,21 +284,13 @@ func (t *Transcriber) Transcribe(file string, isVad bool) (string, error) {
 	if file == "" {
 		return "", errors.New("nil pointer")
 	}
-	f, err := os.Open(file)
-	if err != nil {
-		return "", errors.New("unknown temp file")
-	}
-	defer func() {
-		fn := f.Name()
-		f.Close()
-		os.Remove(fn)
-	}()
+	defer os.Remove(file)
 	var ret string
-	ret, err = t.transcribe(f)
+	ret, err := t.transcribe(file)
 	if err != nil {
 		if errors.Is(err, MAYBE_RETRY) {
 			ret, err = doRetry(func() (string, error) {
-				return t.transcribe(f)
+				return t.transcribe(file)
 			})
 		}
 		if err != nil {

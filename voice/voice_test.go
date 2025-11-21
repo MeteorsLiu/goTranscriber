@@ -19,7 +19,7 @@ func TestVoice(t *testing.T) {
 }
 
 func TestVoiceWithAll(t *testing.T) {
-	f, err := New("/Users/haolan/Downloads/SPSD-02.mp4")
+	f, err := NewWithMode("/Users/haolan/Downloads/SPSD-02.mp4", VadModeEnergy)
 	if err != nil {
 		t.Error("cannot read file", err)
 		return
