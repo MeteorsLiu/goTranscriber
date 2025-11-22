@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 	gt "github.com/bas24/googletranslatefree"
 	"github.com/jellyqwq/Paimon/webapi"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -33,21 +35,7 @@ type Subtitle struct {
 	Subtitle_String string
 }
 
-func zip(a []voice.Region, b []string) map[voice.Region]string {
-	regions := map[voice.Region]string{}
-	if len(a) > len(b) {
-		for i, s := range b {
-			regions[a[i]] = s
-		}
-	} else {
-		for i, s := range a {
-			regions[s] = b[i]
-		}
-	}
-	return regions
-}
-
-func srtNameOf(filename string) string {
+func srtNameOf(filename, vadMode string) string {
 	fn := filepath.Base(filename)
 	dir := filepath.Dir(filename)
 	prefix := strings.Split(fn, ".")[0]
@@ -55,7 +43,7 @@ func srtNameOf(filename string) string {
 	srtname := filepath.Join(dir, prefix+".srt")
 
 	if _, err := os.Stat(srtname); err == nil {
-		tempFile, err := os.CreateTemp(dir, fmt.Sprintf("%s_*.srt", prefix))
+		tempFile, err := os.CreateTemp(dir, fmt.Sprintf("%s_%s_*.srt", prefix, vadMode))
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +55,7 @@ func srtNameOf(filename string) string {
 	return srtname
 }
 
-func DoVad(needTranslate bool, lang, filename, vadMode string) {
+func DoVad(numConcurrent int, needTranslate bool, lang, filename, vadMode string) {
 	isChina := transcribe.IsChina()
 	t = transcribe.New(lang)
 
@@ -76,6 +64,9 @@ func DoVad(needTranslate bool, lang, filename, vadMode string) {
 	if vadMode == "energy" {
 		mode = voice.VadModeEnergy
 		log.Println("Using Energy-based VAD (autosub method)")
+	} else if vadMode == "webrtcpause" {
+		mode = voice.VadModeWebRTCWithPause
+		log.Println("Using WebRTC VAD With Pause Analysis")
 	} else {
 		log.Println("Using WebRTC VAD (default)")
 	}
@@ -93,6 +84,8 @@ func DoVad(needTranslate bool, lang, filename, vadMode string) {
 	}()
 	var wg sync.WaitGroup
 	var lock sync.Mutex
+	sema := semaphore.NewWeighted(int64(numConcurrent))
+
 	trans := map[int]Subtitle{}
 	regions := v.Vad()
 	if len(regions) == 0 || regions == nil {
@@ -105,35 +98,28 @@ func DoVad(needTranslate bool, lang, filename, vadMode string) {
 	log.Println("Slices Done")
 	log.Println("Start to upload the video slices")
 	bar := progressbar.Default(int64(len(slices)))
-	numConcurrent := 30
-	count := 0
-	goid := make(chan int)
-	fileCh := make(chan string)
-	for index, _file := range slices {
-		// Pause the new goroutine until all goroutines are release
-		if count >= numConcurrent {
-			wg.Wait()
-			count = 0
-		}
 
+	for index, file := range slices {
+		sema.Acquire(context.TODO(), 1)
 		wg.Add(1)
+
+		id := index
+		file := file
 
 		go func() {
 			defer wg.Done()
-			id := <-goid
-			file := <-fileCh
+			defer sema.Release(1)
+			defer bar.Add(1)
+
 			subtitle, err := t.Transcribe(file, true)
-			lock.Lock()
-			defer func() {
-				bar.Add(1)
-				lock.Unlock()
-			}()
+
 			if err != nil {
 				if !errors.Is(err, transcribe.MAYBE_RETRY) {
 					log.Printf("ID: %d error occurs: %v", id, err)
 				}
 				return
 			}
+
 			if needTranslate {
 				var ts string
 				if isChina {
@@ -141,28 +127,21 @@ func DoVad(needTranslate bool, lang, filename, vadMode string) {
 				} else {
 					ts, err = gt.Translate(subtitle, "auto", "zh-CN")
 				}
-				if err != nil {
-					ts = subtitle
-				}
-				trans[id] = Subtitle{
-					Region:          regions[id],
-					Subtitle_String: ts,
-				}
-			} else {
-				trans[id] = Subtitle{
-					Region:          regions[id],
-					Subtitle_String: subtitle,
+				if err == nil {
+					subtitle = ts
 				}
 			}
 
+			lock.Lock()
+			trans[id] = Subtitle{
+				Region:          regions[id],
+				Subtitle_String: subtitle,
+			}
+			lock.Unlock()
 		}()
-		goid <- index
-		fileCh <- _file
-		count++
 	}
-	if count > 0 {
-		wg.Wait()
-	}
+	wg.Wait()
+
 	log.Println("Transcribe Done.Waiting to sort the subtitle")
 
 	var keys []int
@@ -176,7 +155,7 @@ func DoVad(needTranslate bool, lang, filename, vadMode string) {
 		log.Println(start, end)
 		subrip.Append(start, end, trans[k].Subtitle_String)
 	}
-	if err := os.WriteFile(srtNameOf(filename), []byte(subrip.String()), 0755); err != nil {
+	if err := os.WriteFile(srtNameOf(filename, vadMode), []byte(subrip.String()), 0755); err != nil {
 		log.Printf("Generating Subrip File Failed: %v", err)
 	}
 }

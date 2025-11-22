@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	numConcurrent int
 	lang          string
 	filename      string
 	needTranslate bool
@@ -20,6 +21,7 @@ func main() {
 	flag.StringVar(&lang, "lang", "", "Source Video Language(源文件语言)")
 	flag.StringVar(&filename, "file", "", "Source Video(原视频文件)")
 	flag.StringVar(&vadMode, "vad", "webrtc", "VAD Mode: webrtc (default) or energy (autosub method)")
+	flag.IntVar(&numConcurrent, "concurrency", 10, "Concurrent transcribing ")
 	flag.Parse()
 
 	if lang == "" || filename == "" {
@@ -35,6 +37,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	DoVad(needTranslate, lang, filename, vadMode)
+	DoVad(numConcurrent, needTranslate, lang, filename, vadMode)
 
 }

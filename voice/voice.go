@@ -35,8 +35,9 @@ var (
 type VadMode string
 
 const (
-	VadModeWebRTC VadMode = "webrtc" // WebRTC VAD (默认)
-	VadModeEnergy VadMode = "energy" // 基于能量的VAD (autosub方法)
+	VadModeWebRTC          VadMode = "webrtc" // WebRTC VAD (默认)
+	VadModeWebRTCWithPause VadMode = "webrtcpause"
+	VadModeEnergy          VadMode = "energy" // 基于能量的VAD (autosub方法)
 )
 
 type Region struct {
@@ -147,8 +148,9 @@ func (v *Voice) Vad() []Region {
 		// 使用基于能量的VAD (autosub方法)
 		rawRegions = v.detectVoiceRegionsByEnergy()
 		log.Printf("Energy-based VAD detected %d regions", len(rawRegions))
-	case VadModeWebRTC:
-		fallthrough
+	case VadModeWebRTCWithPause:
+		rawRegions = v.detectVoiceRegionsWithPause()
+		log.Printf("WebRTC VAD With Pause Analysis detected %d regions", len(rawRegions))
 	default:
 		// 使用WebRTC VAD (默认)
 		rawRegions = v.detectVoiceRegions()
@@ -357,6 +359,144 @@ func (v *Voice) detectVoiceRegionsByEnergy() []Region {
 			Start: start,
 			End:   end,
 		})
+	}
+
+	return regions
+}
+
+// detectVoiceRegions 使用VAD识别声音区域
+func (v *Voice) detectVoiceRegionsWithPause() []Region {
+	v.file.Seek(0, 0)
+
+	frameBytes := 16000 / 50 * 2
+	frameBuffer := make([]byte, frameBytes)
+	frameSize := 16000 / 50
+	frameTime := 0.02
+
+	vadInst := webrtcvad.Create()
+	defer webrtcvad.Free(vadInst)
+	webrtcvad.Init(vadInst)
+	webrtcvad.SetMode(vadInst, 2)
+
+	var regions []Region
+	var currentRegionStart float64
+	var isInRegion bool
+	currentTime := 0.0
+	silenceFrames := 0 // 连续无声帧计数
+
+	const (
+		SOFT_REGION_SIZE float64 = 6 // 软限制：超过此长度考虑在停顿处切分
+
+		// VAD停顿检测参数（帧数，20ms/帧）
+		IGNORE_PAUSE_FRAMES = 10 // 200ms - 忽略的短停顿
+		MEDIUM_PAUSE_FRAMES = 20 // 400ms - 中等停顿，软限制时可切分
+		LONG_PAUSE_FRAMES   = 35 // 700ms - 长停顿，总是切分
+	)
+
+	for {
+		n, err := v.file.Read(frameBuffer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Printf("Error reading frame: %v", err)
+			break
+		}
+		if n < frameBytes {
+			break
+		}
+
+		hasVoice, err := webrtcvad.Process(vadInst, 16000, frameBuffer, frameSize)
+		if err != nil {
+			log.Printf("VAD process error: %v", err)
+			hasVoice = false
+		}
+
+		if hasVoice {
+			if !isInRegion {
+				currentRegionStart = currentTime
+				isInRegion = true
+			}
+			silenceFrames = 0
+		} else {
+			if isInRegion {
+				silenceFrames++
+				regionDuration := currentTime - currentRegionStart
+
+				// 检查是否应该在停顿处切分
+				shouldSplit := false
+
+				// 长停顿：总是切分（>700ms）
+				if silenceFrames >= LONG_PAUSE_FRAMES {
+					shouldSplit = true
+					log.Printf("Long pause: %d frames at %.2fs", silenceFrames, currentTime)
+				} else if silenceFrames >= MEDIUM_PAUSE_FRAMES && regionDuration >= SOFT_REGION_SIZE {
+					// 中等停顿：如果已超过软限制则切分（>400ms且区域>4.5s）
+					shouldSplit = true
+					log.Printf("Medium pause with soft limit: %d frames at %.2fs (dur %.2fs)",
+						silenceFrames, currentTime, regionDuration)
+				}
+
+				if shouldSplit {
+					// 在停顿开始处切分，当前区域End延长0.25秒，下一个区域Start提前0.25秒
+					splitPoint := currentTime - float64(silenceFrames)*frameTime
+					if splitPoint-currentRegionStart >= MIN_REGION_SIZE {
+						regions = append(regions, Region{
+							Start: currentRegionStart,
+							End:   splitPoint, // 延长0.25秒避免切断词
+						})
+						log.Printf("VAD split: %.2f-%.2f (%.2fs)",
+							currentRegionStart, splitPoint, splitPoint-currentRegionStart)
+					}
+					// 下一个区域从停顿点往前0.25秒开始（保留重叠）
+					nextStart := splitPoint
+					if nextStart < 0 {
+						nextStart = 0
+					}
+					currentRegionStart = nextStart
+					isInRegion = false
+					silenceFrames = 0
+				}
+			}
+		}
+
+		// 硬限制：超过最大长度强制切分
+		if isInRegion && (currentTime-currentRegionStart) >= MAX_REGION_SIZE {
+			regions = append(regions, Region{
+				Start: currentRegionStart,
+				End:   currentTime, // 延长0.25秒避免切断词
+			})
+			log.Printf("Hard limit: %.2f-%.2f (%.2fs)",
+				currentRegionStart, currentTime, currentTime-currentRegionStart)
+			// 下一个区域从当前时间往前0.25秒开始（保留重叠）
+			nextStart := currentTime
+			if nextStart < 0 {
+				nextStart = 0
+			}
+			currentRegionStart = nextStart
+		}
+
+		currentTime += frameTime
+	}
+
+	// 处理文件结束时的区域
+	if isInRegion {
+		regionDuration := currentTime - currentRegionStart
+		if regionDuration >= MIN_REGION_SIZE {
+			regions = append(regions, Region{
+				Start: currentRegionStart,
+				End:   currentTime,
+			})
+		}
+	}
+
+	// 统一添加 0.25 秒偏移避免切断词
+	for i := range regions {
+		regions[i].Start -= REGION_OVERLAP
+		if regions[i].Start < 0 {
+			regions[i].Start = 0
+		}
+		regions[i].End += REGION_OVERLAP
 	}
 
 	return regions
