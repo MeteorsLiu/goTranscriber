@@ -37,28 +37,9 @@ faster-whisper对whisper进行了优化，而且引入基于机器学习的Siler
 
 # 安装教程
 
+依赖要求：`ffmpeg`, `go`, `gcc / clang`(编译WebRTC VAD，TODO：使用Go重写，这样就不需要编译器了)
+
 ## Linux(Debian为例)
-
-```
-apt install gcc g++ ffmpeg -y
-wget https://go.dev/dl/go1.19.3.linux-amd64.tar.gz && rm -rf /usr/local/go && tar -C /usr/local -xzf go1.19.3.linux-amd64.tar.gz
-git clone https://github.com/MeteorsLiu/goTranscriber.git
-cd goTranscriber
-/usr/local/go/bin/go build 
-./goSRT -file xxx -lang xx
-```
-
-# English
-
-I am sorry that I don't provide binary file.
-
-It's required to build it by yourself.
-
-Currently, goTranscriber **DON'T** support Windows, for the Gcc compiler reason.
-
-YOU NEED TO Build this project in Linux.
-
-## Linux(Debian/Ubuntu)
 
 ```
 apt install gcc g++ ffmpeg -y
