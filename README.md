@@ -2,6 +2,8 @@
 
 GoTranscriber启发于pyTranscriber
 
+如果你不了解pyTranscriber的话，实际上它就是类似于B站 / YouTube自动字幕生成。只不过有些视频无法上传到这类平台（例如一些电影，影视剧），所以需要这类软件。
+
 由于pyTranscriber极其低效的音频转换效率和高额内存占用。
 
 我使用Golang重塑了pyTranscriber
