@@ -68,3 +68,41 @@ cd goTranscriber
 /usr/local/go/bin/go build 
 ./goSRT -file xxx -lang xx
 ```
+
+# goTranscriber使用
+`-translate`，是否翻译成中文，默认true，也就是默认翻译
+`-vad`, 切片人声区域识别引擎参数，默认：WebRTC VAD保守模式，可选：energy(基于声音能量比例分析), webrtcpause(WebRTC VAD激进模式+停顿分析)
+`-concurrency`，听识并发数量，默认10
+`-lang`, 视频源语言，关于如何填写可以参考[源代码](https://github.com/MeteorsLiu/goTranscriber/blob/60df26a27ab35e71b01f68f4311f326effee9396/transcribe/transcribe.go#L37)
+`-file`，视频文件地址
+
+## 输出
+会输出SRT文件到视频地址目录
+
+假设视频文件叫: `xxx.mp4`
+格式如下：`xxx_webrtc.srt`，如果已经存在，goTranscriber默认不对文件进行覆盖，而是会在后面加一些随机数 `xxx_webrtc_123456.srt`
+
+`webrtc`后缀代表识别引擎
+
+## 关于不同人声识别引擎选用
+默认WebRTC VAD保守模式适合多数场景，但如果背景有嘈杂BGM，效果较差，此类场景推荐energy或者webrtcpause。
+
+实测webrtcpause效果要优于energy（多数情况下）
+
+## 为什么会默认输出
+因为`goTranscriber`使用场景就是批量化自动输出
+
+# Whisper使用
+
+推荐版本：`Python 3.8/3.9`
+
+安装依赖: `pip3 install -r requirements.txt`
+
+假设还是输入`xxx.mp4`:
+
+开始识别：`python3 whisper.py xxx.mp4`
+
+参数：
+`-l`，视频源语言
+`-m`，Whisper模型，默认`large-v3`，质量最好
+
