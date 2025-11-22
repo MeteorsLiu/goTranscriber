@@ -33,6 +33,16 @@ cd goTranscriber
 ./goSRT -file xxx -lang xx
 ```
 
+## macOS
+
+```
+brew install go ffmpeg
+git clone https://github.com/MeteorsLiu/goTranscriber.git
+cd goTranscriber
+/usr/local/go/bin/go build 
+./goSRT -file xxx -lang xx
+```
+
 # goTranscriber使用
 `-translate`，是否翻译成中文，默认true，也就是默认翻译
 
